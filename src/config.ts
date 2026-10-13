@@ -43,6 +43,10 @@ export const config = {
   ntfyUrl: str('NTFY_URL'),
   ntfyToken: str('NTFY_TOKEN'),
   webhookUrl: str('WEBHOOK_URL'),
+  resendApiKey: str('RESEND_API_KEY'),
+  resendFrom: str('RESEND_FROM'),
+  /** Comma-separated recipients. */
+  resendTo: str('RESEND_TO'),
   dashboardUrl: str('DASHBOARD_URL'),
 };
 

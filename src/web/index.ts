@@ -18,7 +18,8 @@ import { HttpError, Router, sendFile } from './http';
 const log = createLogger('web');
 const store = new Store(config.dbPath);
 const plantbook = new PlantbookClient(config.plantbookApiKey, config.plantbookBaseUrl);
-const alerter = new Alerter(store, createNotifiers(config));
+const notifiers = createNotifiers(config, (msg) => log.warn(msg));
+const alerter = new Alerter(store, notifiers);
 
 const PUBLIC = join(ROOT, 'public');
 const CHART_JS = join(ROOT, 'node_modules', 'chart.js', 'dist', 'chart.umd.min.js');
@@ -190,7 +191,7 @@ const router = new Router()
       alertAfterMinutes: alertAfterMinutes(store),
       scanSeconds: config.scanSeconds,
       plantbookConfigured: plantbook.configured,
-      notifiers: createNotifiers(config).map((n) => n.name),
+      notifiers: notifiers.map((n) => n.name),
       collector: raw ? JSON.parse(raw) : null,
       scanRequestedAt: store.getNumberSetting(SETTINGS.scanRequestedAt, 0) || null,
     };
@@ -208,7 +209,7 @@ const router = new Router()
     return { ok: true };
   })
   .on('POST', '/api/alerts/test', async () => {
-    if (!createNotifiers(config).length) throw new HttpError(400, 'No notifier configured (set NTFY_URL or WEBHOOK_URL)');
+    if (!notifiers.length) throw new HttpError(400, 'No notifier configured (set NTFY_URL, WEBHOOK_URL or RESEND_API_KEY)');
     try {
       const errors = await alerter.send({
         kind: 'test',

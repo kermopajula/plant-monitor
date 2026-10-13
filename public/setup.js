@@ -44,7 +44,7 @@
     }
     $('alerts-note').textContent = settings.notifiers.length
       ? `Alerts are sent via ${settings.notifiers.join(' and ')} when a value stays out of range for the time above.`
-      : 'Alerts are off. Set NTFY_URL or WEBHOOK_URL in .env and restart (see README).';
+      : 'Alerts are off. Set NTFY_URL, WEBHOOK_URL or RESEND_API_KEY in .env and restart (see README).';
     $('test-alert').hidden = !settings.notifiers.length;
   }
 

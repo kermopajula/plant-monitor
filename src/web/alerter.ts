@@ -50,7 +50,7 @@ export class Alerter {
 
   start(everyMs = 5 * 60_000) {
     if (!this.notifiers.length) {
-      log.info('no notifier configured (NTFY_URL / WEBHOOK_URL), alerts disabled');
+      log.info('no notifier configured (NTFY_URL / WEBHOOK_URL / RESEND_API_KEY), alerts disabled');
       return;
     }
     log.info(`alerts enabled via ${this.notifiers.map((n) => n.name).join(', ')}`);

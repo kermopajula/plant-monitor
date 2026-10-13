@@ -54,9 +54,51 @@ export class WebhookNotifier implements Notifier {
   }
 }
 
-export function createNotifiers(cfg: { ntfyUrl: string; ntfyToken: string; webhookUrl: string }): Notifier[] {
+const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
+
+/** Email via Resend (https://resend.com). `from` must use a domain verified in Resend. */
+export class ResendNotifier implements Notifier {
+  readonly name = 'resend';
+  constructor(
+    private readonly apiKey: string,
+    private readonly from: string,
+    private readonly to: string[],
+    private readonly baseUrl = 'https://api.resend.com',
+  ) {}
+
+  send(n: Notification) {
+    const text = `${n.message}${n.url ? `\n\nDashboard: ${n.url}` : ''}`;
+    const html =
+      `<p>${escapeHtml(n.message).replace(/\n/g, '<br>')}</p>` +
+      (n.url ? `<p><a href="${escapeHtml(n.url)}">Open the dashboard</a></p>` : '');
+    return post(`${this.baseUrl}/emails`, {
+      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: this.from, to: this.to, subject: n.title, text, html }),
+    });
+  }
+}
+
+export interface NotifierConfig {
+  ntfyUrl: string;
+  ntfyToken: string;
+  webhookUrl: string;
+  resendApiKey: string;
+  resendFrom: string;
+  resendTo: string;
+}
+
+export function createNotifiers(cfg: NotifierConfig, warn: (msg: string) => void = console.warn): Notifier[] {
   const list: Notifier[] = [];
   if (cfg.ntfyUrl) list.push(new NtfyNotifier(cfg.ntfyUrl, cfg.ntfyToken));
   if (cfg.webhookUrl) list.push(new WebhookNotifier(cfg.webhookUrl));
+  if (cfg.resendApiKey) {
+    const to = cfg.resendTo
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!cfg.resendFrom || !to.length) warn('RESEND_API_KEY is set but RESEND_FROM or RESEND_TO is missing: email alerts disabled');
+    else list.push(new ResendNotifier(cfg.resendApiKey, cfg.resendFrom, to));
+  }
   return list;
 }

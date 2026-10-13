@@ -97,7 +97,7 @@ Both processes read `.env` from the project directory. Every setting is document
 | `READ_INTERVAL_MINUTES` | `20` | Default interval (can be changed on the setup page) |
 | `SCAN_SECONDS` | `90` | How long each scan listens for advertisements |
 | `BATTERY_READ_HOURS` | `24` | How often to connect for battery/firmware |
-| `NTFY_URL`, `WEBHOOK_URL` | – | Alert channels (optional) |
+| `NTFY_URL`, `WEBHOOK_URL`, `RESEND_*` | – | Alert channels (optional) |
 | `ALERT_AFTER_MINUTES` | `120` | How long a value must stay out of range before an alert |
 | `DB_PATH` | `data/plants.db` | SQLite database file |
 
@@ -216,12 +216,16 @@ Readings are stored in SQLite (`data/plants.db`) with timestamp, sensor MAC and 
 
 ## Alerts
 
-Alerts are optional and pluggable. Set one or both of these in `.env` and restart `plant-web`:
+Alerts are optional and pluggable. Set any of these in `.env` and restart `plant-web`:
 
 - **ntfy**: `NTFY_URL=https://ntfy.sh/<a-hard-to-guess-topic>`, then subscribe to the same topic in the ntfy app.
   Add `NTFY_TOKEN` for protected or self-hosted servers.
 - **Webhook**: `WEBHOOK_URL=https://hooks.slack.com/services/...`. Alerts are POSTed as `{"text": "...",
   "title": ..., "message": ..., "kind": ...}`, which works directly with Slack incoming webhooks.
+- **Email via [Resend](https://resend.com)**: create an API key in Resend and set `RESEND_API_KEY`, `RESEND_FROM`
+  and `RESEND_TO` (comma-separated for several recipients). Each alert is sent as one email with the plant and
+  problem in the subject. `RESEND_FROM` must use a domain you have verified in Resend. For a quick test without a
+  domain, `onboarding@resend.dev` works, but Resend then only delivers to your own account's email address.
 
 How it behaves:
 
@@ -285,7 +289,7 @@ src/
     status.ts          range checks and plant status
     alerts.ts          alert de-duplication state machine
     plantbook.ts       Open Plant Book client
-    notifiers.ts       ntfy + webhook
+    notifiers.ts       ntfy, webhook, Resend email
     retry.ts           timeouts and retries
   tools/demo.ts        demo data generator
 public/                dashboard + setup pages (plain HTML/JS/CSS, Chart.js)
