@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AlertState } from './lib/alerts';
+import type { DigestEntry } from './lib/digest';
 import type { Measurement } from './lib/miflora';
 import { METRICS, type Metric, type Ranges } from './lib/status';
 
@@ -78,6 +79,11 @@ const MIGRATIONS = [
      mac TEXT NOT NULL, problem TEXT NOT NULL,
      since INTEGER NOT NULL, notified_at INTEGER, cleared_since INTEGER,
      PRIMARY KEY (mac, problem)
+   );`,
+  `CREATE TABLE digest_queue (
+     id INTEGER PRIMARY KEY,
+     mac TEXT NOT NULL, plant TEXT NOT NULL, problem TEXT NOT NULL, detail TEXT NOT NULL,
+     created_at INTEGER NOT NULL
    );`,
 ];
 
@@ -187,6 +193,7 @@ export class Store {
     this.db.transaction(() => {
       this.db.prepare('DELETE FROM readings WHERE mac = ?').run(mac);
       this.db.prepare('DELETE FROM alert_state WHERE mac = ?').run(mac);
+      this.db.prepare('DELETE FROM digest_queue WHERE mac = ?').run(mac);
       this.db.prepare('DELETE FROM sensors WHERE mac = ?').run(mac);
     })();
   }
@@ -285,6 +292,30 @@ export class Store {
       for (const s of states) ins.run(mac, s.problem, s.since, s.notifiedAt, s.clearedSince);
     })();
   }
+
+  // --- daily digest queue ---
+
+  enqueueDigest(entries: Omit<DigestEntry, 'id'>[]) {
+    const ins = this.db.prepare(
+      'INSERT INTO digest_queue (mac, plant, problem, detail, created_at) VALUES (?, ?, ?, ?, ?)',
+    );
+    this.db.transaction(() => {
+      for (const e of entries) ins.run(e.mac, e.plant, e.problem, e.detail, e.createdAt);
+    })();
+  }
+
+  digestQueue(): DigestEntry[] {
+    return this.db
+      .prepare('SELECT id, mac, plant, problem, detail, created_at AS createdAt FROM digest_queue ORDER BY created_at, id')
+      .all() as DigestEntry[];
+  }
+
+  deleteDigestEntries(ids: number[]) {
+    const del = this.db.prepare('DELETE FROM digest_queue WHERE id = ?');
+    this.db.transaction(() => {
+      for (const id of ids) del.run(id);
+    })();
+  }
 }
 
 export function rangesOf(s: SensorRow): Ranges {
@@ -301,4 +332,5 @@ export const SETTINGS = {
   alertAfterMinutes: 'alert_after_minutes',
   scanRequestedAt: 'scan_requested_at',
   collectorStatus: 'collector_status',
+  digestLastDay: 'digest_last_day',
 } as const;

@@ -97,7 +97,7 @@ Both processes read `.env` from the project directory. Every setting is document
 | `READ_INTERVAL_MINUTES` | `20` | Default interval (can be changed on the setup page) |
 | `SCAN_SECONDS` | `90` | How long each scan listens for advertisements |
 | `BATTERY_READ_HOURS` | `24` | How often to connect for battery/firmware |
-| `NTFY_URL`, `WEBHOOK_URL`, `RESEND_*` | – | Alert channels (optional) |
+| `NTFY_URL`, `WEBHOOK_URL`, `RESEND_*` | – | Alert channels (optional); email is a daily digest |
 | `ALERT_AFTER_MINUTES` | `120` | How long a value must stay out of range before an alert |
 | `DB_PATH` | `data/plants.db` | SQLite database file |
 
@@ -222,21 +222,27 @@ Alerts are optional and pluggable. Set any of these in `.env` and restart `plant
   Add `NTFY_TOKEN` for protected or self-hosted servers.
 - **Webhook**: `WEBHOOK_URL=https://hooks.slack.com/services/...`. Alerts are POSTed as `{"text": "...",
   "title": ..., "message": ..., "kind": ...}`, which works directly with Slack incoming webhooks.
-- **Email via [Resend](https://resend.com)**: create an API key in Resend and set `RESEND_API_KEY`, `RESEND_FROM`
-  and `RESEND_TO` (comma-separated for several recipients). Each alert is sent as one email with the plant and
-  problem in the subject. `RESEND_FROM` must use a domain you have verified in Resend. For a quick test without a
+- **Email via [Resend](https://resend.com)**, as a **daily digest**: create an API key in Resend and set
+  `RESEND_API_KEY`, `RESEND_FROM` and `RESEND_TO` (comma-separated for several recipients). Instead of one email
+  per alert, alerts are queued and sent **once a day** at `RESEND_DIGEST_TIME` (default `08:00`, in the Pi's
+  time zone; check with `timedatectl`). The email lists every problem since the previous digest, grouped by
+  plant, and says whether each one is still ongoing or resolved by now. No email is sent on days without new
+  problems. If the Pi is off at that time, the digest goes out when it is back; if sending fails, it is retried
+  every few minutes. `RESEND_FROM` must use a domain you have verified in Resend. For a quick test without a
   domain, `onboarding@resend.dev` works, but Resend then only delivers to your own account's email address.
 
 How it behaves:
 
-- A problem must last at least `ALERT_AFTER_MINUTES` (also editable on the setup page) before an alert is sent.
+- A problem must last at least `ALERT_AFTER_MINUTES` (also editable on the setup page) before an alert is sent
+  (ntfy/webhook) or queued for the next daily digest (email).
 - **Each problem is notified once.** No repeats while it persists, even across restarts, because the state is
   stored in the database.
 - A problem only counts as resolved after it has been fine for the same amount of time. That keeps a value
   hovering around a limit from alerting over and over. Set `ALERT_SEND_RESOLVED=true` to get a message when a
   problem is resolved.
 - A sensor going silent produces a "No recent data" alert.
-- Use **Send test alert** on the setup page to check the configuration.
+- Use **Send test alert** on the setup page to check the configuration. It sends right away on every channel,
+  including email.
 
 To add another channel, implement the `Notifier` interface in `src/lib/notifiers.ts` and register it in
 `createNotifiers`.
@@ -288,6 +294,7 @@ src/
     firmware.ts        firmware detection and advice
     status.ts          range checks and plant status
     alerts.ts          alert de-duplication state machine
+    digest.ts          daily email digest: schedule and aggregation
     plantbook.ts       Open Plant Book client
     notifiers.ts       ntfy, webhook, Resend email
     retry.ts           timeouts and retries

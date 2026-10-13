@@ -11,6 +11,8 @@ export interface Notification {
 
 export interface Notifier {
   readonly name: string;
+  /** Digest channels get one aggregated message per day instead of one per alert. */
+  readonly digest?: boolean;
   send(n: Notification): Promise<void>;
 }
 
@@ -57,9 +59,13 @@ export class WebhookNotifier implements Notifier {
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
 
-/** Email via Resend (https://resend.com). `from` must use a domain verified in Resend. */
+/**
+ * Email via Resend (https://resend.com), sent as a daily digest.
+ * `from` must use a domain verified in Resend.
+ */
 export class ResendNotifier implements Notifier {
   readonly name = 'resend';
+  readonly digest = true;
   constructor(
     private readonly apiKey: string,
     private readonly from: string,

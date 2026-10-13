@@ -5,6 +5,7 @@ import { basename, join } from 'node:path';
 import { config, ROOT } from '../config';
 import { rangesOf, SETTINGS, Store, type SensorRow } from '../db';
 import { UPDATE_STEPS, UPDATE_WARNINGS, describeFirmware } from '../lib/firmware';
+import { formatTimeOfDay } from '../lib/digest';
 import { createLogger } from '../lib/log';
 import { normalizeMac } from '../lib/miflora';
 import { createNotifiers } from '../lib/notifiers';
@@ -191,7 +192,7 @@ const router = new Router()
       alertAfterMinutes: alertAfterMinutes(store),
       scanSeconds: config.scanSeconds,
       plantbookConfigured: plantbook.configured,
-      notifiers: notifiers.map((n) => n.name),
+      notifiers: notifiers.map((n) => (n.digest ? `email via ${n.name} (daily digest at ${formatTimeOfDay(config.resendDigestTime)})` : n.name)),
       collector: raw ? JSON.parse(raw) : null,
       scanRequestedAt: store.getNumberSetting(SETTINGS.scanRequestedAt, 0) || null,
     };

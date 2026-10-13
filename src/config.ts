@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parseTimeOfDay } from './lib/digest';
 
 /** Project root (this file compiles to dist/src/config.js). */
 export const ROOT = resolve(__dirname, '..', '..');
@@ -47,6 +48,8 @@ export const config = {
   resendFrom: str('RESEND_FROM'),
   /** Comma-separated recipients. */
   resendTo: str('RESEND_TO'),
+  /** Local time (HH:MM) of the daily email digest. */
+  resendDigestTime: parseTimeOfDay(str('RESEND_DIGEST_TIME', '08:00')),
   dashboardUrl: str('DASHBOARD_URL'),
 };
 
