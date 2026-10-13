@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plant Monitor Setup</title>
+  <meta name="theme-color" content="#1c7a3e">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪴</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <h1>Setup</h1>
+      <nav><a class="btn" href="/">← Dashboard</a></nav>
+    </header>
+
+    <section class="panel">
+      <h2>Collector</h2>
+      <p id="collector" class="subtle">Loading…</p>
+      <button class="btn primary" id="scan">Scan now</button>
+      <p class="subtle" id="scan-note"></p>
+    </section>
+
+    <section class="panel">
+      <h2>New sensors</h2>
+      <p class="subtle">Mi Flora sensors heard by the Pi that are not added yet. Put a sensor close to the Pi and press
+        <i>Scan now</i> if yours is missing.</p>
+      <ul class="list" id="discovered"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Your plants</h2>
+      <ul class="list" id="adopted"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Settings</h2>
+      <form id="settings" class="row">
+        <label class="field narrow">Read every (minutes)<input type="number" name="intervalMinutes" min="5" max="1440" step="1" required></label>
+        <label class="field narrow">Alert after (minutes)<input type="number" name="alertAfterMinutes" min="0" max="10080" step="1" required></label>
+        <button class="btn primary" type="submit">Save</button>
+      </form>
+      <p class="subtle" id="alerts-note"></p>
+      <button class="btn" id="test-alert" hidden>Send test alert</button>
+    </section>
+  </div>
+  <script src="/static/common.js"></script>
+  <script src="/static/setup.js"></script>
+</body>
+</html>

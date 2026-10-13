@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plant Monitor</title>
+  <meta name="theme-color" content="#1c7a3e">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪴</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <h1>🪴 Plants</h1>
+        <div class="subtle" id="updated"></div>
+      </div>
+      <nav><a class="btn" href="/setup">Setup</a></nav>
+    </header>
+
+    <main id="plants" class="grid" aria-live="polite"></main>
+
+    <section class="panel" id="firmware-help" style="margin-top:24px">
+      <h2>About sensor firmware</h2>
+      <p>Mi Flora sensors on firmware <b>3.x</b> broadcast their readings, so the Pi can just listen.
+        Older <b>2.x</b> firmware has to be connected to for every reading, which is less reliable and
+        uses more battery. Firmware 3.2.1 and newer no longer broadcast battery level, so the Pi connects
+        about once a day to read it.</p>
+      <p><b>Updating</b> is only possible with the official <i>Flower Care</i> app by HHCC:</p>
+      <ol class="steps" id="fw-steps"></ol>
+      <div class="notice warn" id="fw-warnings"></div>
+    </section>
+  </div>
+  <script src="/static/chart.umd.min.js"></script>
+  <script src="/static/common.js"></script>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

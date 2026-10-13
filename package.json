@@ -1,0 +1,42 @@
+{
+  "name": "plant-monitor",
+  "version": "0.1.0",
+  "description": "Self-hosted Xiaomi Mi Flora plant monitor for Raspberry Pi",
+  "scripts": {
+    "build": "tsc -p .",
+    "clean": "rm -rf dist",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "dev:collector": "npm run build && node dist/src/collector/index.js",
+    "dev:web": "npm run build && node dist/src/web/index.js",
+    "demo": "npm run build && DB_PATH=data/demo.db node dist/src/tools/demo.js",
+    "demo:web": "DB_PATH=data/demo.db PORT=3001 node dist/src/web/index.js",
+    "start": "npm run build && pm2 startOrReload ecosystem.config.js --update-env",
+    "stop": "pm2 stop ecosystem.config.js",
+    "logs": "pm2 logs plant-collector plant-web",
+    "setcap": "sudo setcap cap_net_raw+eip $(eval readlink -f $(which node))"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kermopajula/plant-monitor.git"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/kermopajula/plant-monitor/issues"
+  },
+  "homepage": "https://github.com/kermopajula/plant-monitor#readme",
+  "dependencies": {
+    "@abandonware/noble": "^1.9.2-26",
+    "better-sqlite3": "^13.0.3",
+    "chart.js": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}
