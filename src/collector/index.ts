@@ -15,11 +15,13 @@ import { createLogger } from '../lib/log';
 import { METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
 import { errorMessage, retry, sleep } from '../lib/retry';
 import { intervalMinutes } from '../plants';
-import { FloraBle, onAdapterLost, waitForPoweredOn, type Advert } from './ble';
+// './ble' is loaded in main(): noble opens the Bluetooth socket while loading and
+// throws if that fails, which we want to report rather than crash on.
+import type { Advert, FloraBle } from './ble';
 
 const log = createLogger('collector');
 const store = new Store(config.dbPath);
-const ble = new FloraBle({ connectMs: config.connectTimeoutMs, gattMs: config.gattTimeoutMs });
+let ble: FloraBle;
 
 /** If a cycle takes longer than this, BLE is probably wedged: exit and let PM2 restart us. */
 const CYCLE_WATCHDOG_MS = 15 * 60_000;
@@ -119,16 +121,18 @@ function setStatus(patch: Record<string, unknown>) {
 
 async function main() {
   log.info(`starting; db=${config.dbPath}`);
-  onAdapterLost((state) => {
-    log.error(`Bluetooth adapter state changed to "${state}", exiting so PM2 restarts the collector`);
-    process.exit(1);
-  });
   try {
+    const { FloraBle, onAdapterLost, waitForPoweredOn } = require('./ble') as typeof import('./ble');
+    ble = new FloraBle({ connectMs: config.connectTimeoutMs, gattMs: config.gattTimeoutMs });
+    onAdapterLost((state) => {
+      log.error(`Bluetooth adapter state changed to "${state}", exiting so PM2 restarts the collector`);
+      process.exit(1);
+    });
     await waitForPoweredOn(30_000);
   } catch (err) {
     setStatus({ state: 'error', error: errorMessage(err) });
     log.error(
-      `${errorMessage(err)}. Is Bluetooth enabled (sudo hciconfig hci0 up) and does node have cap_net_raw? See README.`,
+      `${errorMessage(err)}. Is Bluetooth enabled and does node have cap_net_raw? Re-run ./scripts/install.sh or see README → Troubleshooting.`,
     );
     process.exit(1);
   }

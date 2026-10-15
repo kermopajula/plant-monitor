@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Self-hosted Xiaomi Mi Flora plant monitor for Raspberry Pi",
   "scripts": {
+    "setup": "bash scripts/install.sh",
     "build": "tsc -p .",
     "clean": "rm -rf dist",
     "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
@@ -13,7 +14,7 @@
     "start": "npm run build && pm2 startOrReload ecosystem.config.js --update-env",
     "stop": "pm2 stop ecosystem.config.js",
     "logs": "pm2 logs plant-collector plant-web",
-    "setcap": "sudo setcap cap_net_raw+eip $(eval readlink -f $(which node))"
+    "setcap": "sudo setcap cap_net_raw,cap_net_admin+eip $(eval readlink -f $(which node))"
   },
   "repository": {
     "type": "git",

@@ -47,15 +47,56 @@ sudo apt install -y bluetooth bluez libbluetooth-dev libudev-dev build-essential
 
 ## Install
 
+**One command.** Log in to the Pi as your normal user (not root) and run:
+
 ```bash
-git clone <this repo> ~/plant-monitor
+git clone https://github.com/kermopajula/plant-monitor.git ~/plant-monitor
 cd ~/plant-monitor
-npm ci          # or: npm install
-npm run build   # compiles TypeScript to dist/
-npm test        # optional: runs the unit tests
-cp .env.example .env
-nano .env       # at least set PLANTBOOK_API_KEY, see below
+./scripts/install.sh
 ```
+
+The script takes a few minutes the first time, mostly compiling the Bluetooth and SQLite modules. It does
+everything in the sections below for you:
+
+1. Installs the system packages (BlueZ, Bluetooth headers, build tools, `setcap`).
+2. Checks for Node.js 22+. If it is missing or older, it offers to install Node 22 LTS. It installs PM2 if needed.
+3. Unblocks and switches on the Bluetooth adapter.
+4. Installs the dependencies, builds the app and runs the unit tests.
+5. Gives Node permission to use Bluetooth without root (`setcap`, see below).
+6. Creates `.env` (only readable by you) and asks for your Open Plant Book key. It can also set up phone alerts
+   with a private ntfy topic.
+7. Starts both processes with PM2 and enables start at boot (`pm2 startup` + `pm2 save`).
+8. Checks that the dashboard answers and the collector can use Bluetooth, then prints the dashboard address.
+
+**Run it again any time.** It is safe to re-run: finished steps are skipped, and your `.env` is kept. Re-run it
+after `git pull` (to update), after a Node upgrade (to restore the Bluetooth permission), or when something is
+not working: the checks at the end tell you what is wrong. A re-run takes about 15 seconds when nothing changed.
+
+Options: `--yes` asks no questions (for scripted installs), `--skip-tests` skips the unit tests, `--help`.
+
+The script supports Raspberry Pi OS (and other Debian-based systems with `apt`). Two cases need a manual step,
+and the script stops with instructions:
+- If Node comes from **nvm**, update it with nvm (`nvm install 22`).
+- **Pi 1 and Pi Zero/Zero W (ARMv6)** need an unofficial Node build.
+
+### Manual install
+
+If you prefer to do it by hand, these are the steps the script performs:
+
+```bash
+sudo apt install -y bluetooth bluez libbluetooth-dev libudev-dev build-essential python3 libcap2-bin
+npm ci
+npm run build
+npm test                 # optional
+sudo setcap cap_net_raw,cap_net_admin+eip $(eval readlink -f $(which node))
+cp .env.example .env && chmod 600 .env
+nano .env                # at least set PLANTBOOK_API_KEY, see below
+pm2 start ecosystem.config.js
+pm2 startup              # run the command it prints
+pm2 save
+```
+
+The sections below explain each part.
 
 ## Bluetooth permissions for Node
 
@@ -63,16 +104,16 @@ The collector talks to the Bluetooth controller (HCI) directly. Raw HCI access n
 `node` binary the network capability:
 
 ```bash
-sudo setcap cap_net_raw+eip $(eval readlink -f $(which node))
+sudo setcap cap_net_raw,cap_net_admin+eip $(eval readlink -f $(which node))
 ```
 
-(`npm run setcap` runs the same command.)
+The install script does this for you, and so does `npm run setcap`.
 
 - `readlink -f` resolves symlinks. That matters with nvm or `/usr/bin/node` links, because the capability has to
   be on the real binary.
 - **Run it again after every Node upgrade.** A new binary has no capability.
-- If you still get permission errors, add `cap_net_admin` as well:
-  `sudo setcap cap_net_raw,cap_net_admin+eip $(eval readlink -f $(which node))`
+- `cap_net_raw` is the one noble needs. `cap_net_admin` avoids permission errors on some systems when the
+  adapter is configured.
 - Check it with `getcap $(eval readlink -f $(which node))`.
 
 Make sure Bluetooth is not blocked and the adapter is up:
@@ -249,10 +290,14 @@ To add another channel, implement the `Notifier` interface in `src/lib/notifiers
 
 ## Troubleshooting
 
+First try re-running `./scripts/install.sh`: it repairs packages, permissions and PM2, then reports what is still
+wrong.
+
 | Symptom | Things to check |
 |---|---|
 | Collector log says `waiting for Bluetooth adapter timed out` | `rfkill list`, `sudo hciconfig hci0 up`, `setcap` (see above), `NOBLE_HCI_DEVICE_ID` if you use a USB dongle |
-| `EPERM` / `Operation not permitted` | Run the `setcap` command again (e.g. after a Node upgrade) |
+| `EPERM` / `Operation not permitted` | Missing Bluetooth permission, e.g. after a Node upgrade: re-run `./scripts/install.sh` |
+| `EAFNOSUPPORT, Address family not supported` | No Bluetooth adapter: check `ls /sys/class/bluetooth` and that `dtoverlay=disable-bt` is not in `/boot/firmware/config.txt` |
 | Sensor never shows up | Move it closer, press **Scan now**, check its battery (CR2032). Close the Flower Care app on your phone: a connected phone stops the sensor from advertising |
 | "Not heard during the last scan" | Range or battery. Increase `SCAN_SECONDS` if it only happens sometimes |
 | "Active read failed: connect timed out" | Range/interference. The Pi's built-in radio shares its antenna with Wi‑Fi, so a wired Ethernet connection or a USB BLE dongle can help |
