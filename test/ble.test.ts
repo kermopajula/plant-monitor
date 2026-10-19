@@ -21,10 +21,11 @@ const FW_BATTERY = Buffer.concat([Buffer.from([87, 0x15]), Buffer.from('3.3.5', 
 const DATA = Buffer.from([0xe1, 0x00, 0x00, 0xdc, 0x05, 0x00, 0x00, 0x21, 0xa4, 0x01, 0x02, 0x3c, 0, 0, 0, 0]);
 
 /** Fake Mi Flora. `handlesWork: false` behaves like a sensor that answers handle reads with an error. */
-function fakeSensor(mac: string, opts: { handlesWork: boolean; chars?: Record<string, Buffer> }) {
+function fakeSensor(mac: string, opts: { handlesWork: boolean; chars?: Record<string, Buffer>; serviceUuid?: string }) {
   const calls: string[] = [];
   const chars = Object.entries(opts.chars ?? { '1a00': Buffer.alloc(0), '1a01': DATA, '1a02': FW_BATTERY }).map(([uuid, value]) => ({
     uuid,
+    properties: ['read', 'write'],
     readAsync: async () => (calls.push(`char:${uuid}`), value),
     writeAsync: async () => void calls.push(`write:${uuid}`),
   }));
@@ -38,7 +39,10 @@ function fakeSensor(mac: string, opts: { handlesWork: boolean; chars?: Record<st
     cancelConnect: () => {},
     readHandleAsync: async (h: number) => (calls.push(`handle:${h}`), opts.handlesWork ? handles[h] : Buffer.alloc(0)),
     writeHandleAsync: async (h: number) => void calls.push(`whandle:${h}`),
-    discoverSomeServicesAndCharacteristicsAsync: async () => (calls.push('discover'), { services: [], characteristics: chars }),
+    discoverAllServicesAndCharacteristicsAsync: async () => {
+      calls.push('discover');
+      return { services: [{ uuid: opts.serviceUuid ?? '1204', characteristics: chars }], characteristics: chars };
+    },
   };
   return { p, calls };
 }
@@ -103,6 +107,18 @@ describe('FloraBle.poll', () => {
     await discovered(scanner, s.p);
     await assert.rejects(scanner.poll('C4:7C:8D:00:00:03', false, null), /1a02 not found in service 1204 \(found: 1a11\)/);
     assert.equal(s.calls.at(-1), 'disconnect');
+  });
+
+  it('explains a sensor without the Mi Flora data service, without retrying pointlessly', async () => {
+    const { GattLayoutError } = require('../src/lib/miflora') as typeof import('../src/lib/miflora');
+    const scanner = new ble.FloraBle({ connectMs: 100, gattMs: 100 });
+    const s = fakeSensor('5C:85:7E:00:00:05', { handlesWork: false, serviceUuid: 'fe95', chars: { '0004': Buffer.from([1]) } });
+    await discovered(scanner, s.p);
+    await assert.rejects(scanner.poll('5C:85:7E:00:00:05', false, null), (e: Error) => {
+      assert.ok(e instanceof GattLayoutError);
+      assert.match(e.message, /no Mi Flora data service 1204; it offers: fe95 \[0004\(read\/write\)\]/);
+      return true;
+    });
   });
 
   it('still returns readings when only battery/firmware fail', async () => {

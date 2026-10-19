@@ -15,6 +15,8 @@ export interface RetryOptions {
   /** Delay before the 2nd attempt; doubles after each failure. */
   baseDelayMs: number;
   onError?: (err: unknown, attempt: number) => void;
+  /** Return false to give up immediately (e.g. for errors that will not go away). */
+  shouldRetry?: (err: unknown) => boolean;
 }
 
 export async function retry<T>(fn: (attempt: number) => Promise<T>, opts: RetryOptions): Promise<T> {
@@ -25,6 +27,7 @@ export async function retry<T>(fn: (attempt: number) => Promise<T>, opts: RetryO
     } catch (err) {
       lastErr = err;
       opts.onError?.(err, attempt);
+      if (opts.shouldRetry && !opts.shouldRetry(err)) break;
       if (attempt < opts.attempts) await sleep(opts.baseDelayMs * 2 ** (attempt - 1));
     }
   }

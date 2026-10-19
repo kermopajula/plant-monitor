@@ -314,6 +314,13 @@ wrong.
 
 Set `DEBUG_LOG=true` for more verbose logs.
 
+**Inspecting a sensor.** `./scripts/inspect.sh <MAC>` (or `npm run inspect -- <MAC>`) prints what a sensor
+broadcasts and its full GATT layout. It reads every readable characteristic and lists the raw handles that return
+data. It is read-only: nothing is written to the sensor. It pauses the collector while it runs and saves the output
+to `data/inspect-<MAC>.txt`. Without a MAC it lists the Mi Flora sensors in range. This is useful when a sensor
+revision differs from the known Mi Flora layout, e.g. battery/firmware reads fail with "no Mi Flora data
+service 1204".
+
 ## Development
 
 ```bash

@@ -12,6 +12,7 @@ import {
   CHAR_MODE_CHANGE,
   CHAR_REALTIME_DATA,
   DATA_SERVICE_UUID,
+  GattLayoutError,
   HANDLE_FIRMWARE_BATTERY,
   HANDLE_MODE_CHANGE,
   HANDLE_REALTIME_DATA,
@@ -44,6 +45,13 @@ export interface PollResult {
   values: Measurement | null;
 }
 
+function describeServices(services: noble.Service[]): string {
+  if (!services.length) return 'no services';
+  return services
+    .map((sv) => `${sv.uuid} [${(sv.characteristics ?? []).map((c) => `${c.uuid}(${c.properties.join('/')})`).join(', ')}]`)
+    .join('; ');
+}
+
 const hex = (h: number) => `0x${h.toString(16).padStart(2, '0')}`;
 
 /**
@@ -63,17 +71,24 @@ class SensorGatt {
 
   private async characteristic(uuid: string): Promise<noble.Characteristic> {
     if (!this.chars) {
-      const { characteristics } = await withTimeout(
-        this.p.discoverSomeServicesAndCharacteristicsAsync([DATA_SERVICE_UUID], []),
-        this.gattMs * 2,
-        'discover characteristics',
+      // Discover everything (not just 1204), so a different layout can be reported.
+      const { services } = await withTimeout(
+        this.p.discoverAllServicesAndCharacteristicsAsync(),
+        this.gattMs * 3,
+        'discover services',
       );
-      this.chars = new Map(characteristics.map((c) => [c.uuid.toLowerCase(), c]));
+      const data = services.find((sv) => sv.uuid.toLowerCase() === DATA_SERVICE_UUID);
+      if (!data) {
+        throw new GattLayoutError(
+          `sensor has no Mi Flora data service ${DATA_SERVICE_UUID}; it offers: ${describeServices(services)}`,
+        );
+      }
+      this.chars = new Map(data.characteristics.map((c) => [c.uuid.toLowerCase(), c]));
     }
     const c = this.chars.get(uuid);
     if (!c) {
       const found = [...this.chars.keys()].join(', ') || 'none';
-      throw new Error(`characteristic ${uuid} not found in service ${DATA_SERVICE_UUID} (found: ${found})`);
+      throw new GattLayoutError(`characteristic ${uuid} not found in service ${DATA_SERVICE_UUID} (found: ${found})`);
     }
     return c;
   }

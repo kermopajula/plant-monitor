@@ -12,7 +12,7 @@
 import { config } from '../config';
 import { SETTINGS, Store, type SensorRow } from '../db';
 import { createLogger } from '../lib/log';
-import { METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
+import { GattLayoutError, METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
 import { errorMessage, retry, sleep } from '../lib/retry';
 import { decidePoll } from '../lib/poll-policy';
 import { intervalMinutes } from '../plants';
@@ -98,6 +98,7 @@ async function runCycle(): Promise<Record<string, unknown>> {
         attempts: config.pollAttempts,
         baseDelayMs: 2000,
         onError: (err, attempt) => log.warn(`${label(s)}: poll attempt ${attempt} failed: ${errorMessage(err)}`),
+        shouldRetry: (err) => !(err instanceof GattLayoutError),
       });
       const ts = Date.now();
       if (r.firmware && r.firmware !== s.firmware) log.info(`${label(s)}: firmware ${r.firmware}`);

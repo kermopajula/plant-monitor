@@ -29,6 +29,9 @@ export const CHAR_MODE_CHANGE = '1a00';
 export const CHAR_REALTIME_DATA = '1a01';
 export const CHAR_FIRMWARE_BATTERY = '1a02';
 
+/** The sensor's GATT layout differs from the known one: retrying will not help. */
+export class GattLayoutError extends Error {}
+
 export interface MiBeacon {
   productId: number;
   frameCounter: number;

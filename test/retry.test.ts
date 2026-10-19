@@ -31,4 +31,15 @@ describe('retry', () => {
     );
     assert.deepEqual(errors, [1, 2]);
   });
+  it('stops early when shouldRetry says no', async () => {
+    let calls = 0;
+    await assert.rejects(
+      retry(async () => {
+        calls++;
+        throw new Error('permanent');
+      }, { attempts: 3, baseDelayMs: 1, shouldRetry: () => false }),
+      /permanent/,
+    );
+    assert.equal(calls, 1);
+  });
 });
