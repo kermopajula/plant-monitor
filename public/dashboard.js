@@ -1,6 +1,6 @@
 /* global Chart, PM */
 (function () {
-  const { METRICS, api, esc, fmt, timeAgo, firmwareNotice } = PM;
+  const { METRICS, api, esc, fmt, timeAgo } = PM;
   const DAY = 86400000;
   const root = document.getElementById('plants');
   const cards = new Map(); // mac -> { el, plant, chart, metric, days }
@@ -79,10 +79,10 @@
       <div class="meta">
         <span>Last reading <b>${timeAgo(p.lastReadingAt, now)}</b></span>
         <span>Battery <b>${battery}</b></span>
-        <span>Firmware <b>${esc(fw.version || 'unknown')}</b></span>
+        <span>Firmware <b>${esc(fw.version || 'unknown')}</b>${fw.advice ? ` <a class="fw-hint" href="#firmware-help" title="${esc(fw.advice.title)}">${fw.advice.level === 'caution' ? 'note' : 'update tip'}</a>` : ''}</span>
         ${p.mode ? `<span>Mode <b>${p.mode}</b></span>` : ''}
       </div>
-      ${firmwareNotice(fw)}${rangesNote}${err}`;
+      ${rangesNote}${err}`;
   }
 
   function historyHtml() {
@@ -298,7 +298,20 @@
     }
   }
 
-  refresh();
+  // Firmware notes stay collapsed at the bottom; links to them (also from the setup page) open them.
+  function openFirmwareHelp() {
+    const d = document.getElementById('firmware-help');
+    d.open = true;
+    d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a[href="#firmware-help"]')) {
+      e.preventDefault();
+      openFirmwareHelp();
+    }
+  });
+
+  refresh().then(() => location.hash === '#firmware-help' && openFirmwareHelp());
   setInterval(() => document.visibilityState === 'visible' && refresh(), 60000);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refresh());
 })();

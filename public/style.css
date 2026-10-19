@@ -195,3 +195,17 @@ input[type='text'], input[type='number'], input[type='search'] {
 }
 ol.steps { padding-left: 1.3em; margin: 6px 0; }
 ol.steps li { margin: 3px 0; }
+
+/* Firmware notes: kept out of the way until asked for. */
+details.fw-help { margin-top: 28px; text-align: center; }
+details.fw-help > summary {
+  display: inline-block; list-style: none; cursor: pointer; color: var(--text-3); font-size: 0.85rem;
+  padding: 6px 12px; border-radius: 999px; border: 1px solid transparent;
+}
+details.fw-help > summary::-webkit-details-marker { display: none; }
+details.fw-help > summary::after { content: ' ▾'; }
+details.fw-help[open] > summary::after { content: ' ▴'; }
+details.fw-help > summary:hover { color: var(--text-2); border-color: var(--border); }
+details.fw-help > .panel { text-align: left; margin-top: 8px; }
+.fw-hint { color: var(--text-3); font-size: 0.8rem; text-decoration: underline dotted; margin-left: 2px; }
+.fw-hint:hover { color: var(--text-2); }
