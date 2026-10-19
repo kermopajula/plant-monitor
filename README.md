@@ -142,7 +142,8 @@ Both processes read `.env` from the project directory. Every setting is document
 | `ALERT_AFTER_MINUTES` | `120` | How long a value must stay out of range before an alert |
 | `DB_PATH` | `data/plants.db` | SQLite database file |
 
-Restart after changing `.env`: `pm2 restart ecosystem.config.js --update-env`.
+Restart after changing `.env`: `pm2 restart ecosystem.config.js --update-env`. If `PORT` is already used by
+another program, the install script moves the dashboard to the next free port.
 
 ## Open Plant Book API key
 
@@ -296,6 +297,7 @@ wrong.
 | Symptom | Things to check |
 |---|---|
 | Collector log says `waiting for Bluetooth adapter timed out` | `rfkill list`, `sudo hciconfig hci0 up`, `setcap` (see above), `NOBLE_HCI_DEVICE_ID` if you use a USB dongle |
+| Dashboard address shows another app or `{"error":"Unauthorized"}`; `plant-web` keeps restarting in `pm2 status` | Its port is used by another program (`plant-web` logs "Port … is already used"). Re-run `./scripts/install.sh`: it picks a free port, saves it as `PORT` in `.env` and prints the new address. To see what uses a port: `sudo ss -ltnp \| grep :3000` |
 | `EPERM` / `Operation not permitted` | Missing Bluetooth permission, e.g. after a Node upgrade: re-run `./scripts/install.sh` |
 | `EAFNOSUPPORT, Address family not supported` | No Bluetooth adapter: check `ls /sys/class/bluetooth` and that `dtoverlay=disable-bt` is not in `/boot/firmware/config.txt` |
 | Sensor never shows up | Move it closer, press **Scan now**, check its battery (CR2032). Close the Flower Care app on your phone: a connected phone stops the sensor from advertising |

@@ -64,6 +64,17 @@ confirm() { # confirm "Question" -> 0 for yes (default yes)
   [[ "$r" =~ ^[Yy] ]]
 }
 
+# free | ours (this app answers) | taken (another program listens there)
+port_state() {
+  if ! (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; then
+    echo free
+  elif curl -fsS -m 3 "http://127.0.0.1:$1/api/health" 2>/dev/null | grep -q '"app":"plant-monitor"'; then
+    echo ours
+  else
+    echo taken
+  fi
+}
+
 node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
 
 # Reads/writes KEY=value lines in .env without breaking on special characters.
@@ -193,6 +204,25 @@ mkdir -p data
 PORT="$(env_get PORT)"
 PORT="${PORT:-3000}"
 HOSTNAME_LOCAL="$(hostname).local"
+if [[ "$(port_state "$PORT")" == taken ]]; then
+  new_port=$((PORT + 1))
+  while [[ "$(port_state "$new_port")" != free && $new_port -lt $((PORT + 100)) ]]; do new_port=$((new_port + 1)); done
+  [[ "$(port_state "$new_port")" == free ]] || die "Port $PORT is used by another program and no free port was found near it. Set PORT in .env."
+  warn "Port $PORT is already used by another program on this Pi."
+  if [[ $INTERACTIVE -eq 1 ]]; then
+    choice="$(ask "Port for the dashboard [$new_port]:" "$new_port")"
+    [[ "$choice" =~ ^[0-9]+$ && $choice -ge 1024 && $choice -le 65535 ]] || die "Not a valid port: $choice"
+    [[ "$(port_state "$choice")" != taken ]] || die "Port $choice is also in use. Run the script again and pick another one."
+    new_port="$choice"
+  fi
+  # Keep the notification link in sync if it was the automatic one.
+  if [[ "$(env_get DASHBOARD_URL)" == "http://${HOSTNAME_LOCAL}:${PORT}" ]]; then
+    env_set DASHBOARD_URL "http://${HOSTNAME_LOCAL}:${new_port}"
+  fi
+  env_set PORT "$new_port"
+  PORT="$new_port"
+  ok "dashboard will use port $PORT (saved in .env)"
+fi
 if [[ -z "$(env_get DASHBOARD_URL)" ]]; then
   env_set DASHBOARD_URL "http://${HOSTNAME_LOCAL}:${PORT}"
   ok "DASHBOARD_URL=http://${HOSTNAME_LOCAL}:${PORT} (link used in notifications)"
@@ -252,10 +282,10 @@ fi
 step "Checking that everything works"
 web_ok=0
 for _ in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:${PORT}/api/settings" >/dev/null 2>&1; then web_ok=1 && break; fi
+  if [[ "$(port_state "$PORT")" == ours ]]; then web_ok=1 && break; fi
   sleep 1
 done
-if [[ $web_ok -eq 1 ]]; then ok "dashboard responds on port ${PORT}"; else warn "dashboard did not respond yet, check: pm2 logs plant-web"; fi
+if [[ $web_ok -eq 1 ]]; then ok "dashboard responds on port ${PORT}"; else warn "dashboard did not start on port ${PORT}, check: pm2 logs plant-web"; fi
 
 # The collector records its state (with a timestamp) in the database; the API exposes it.
 ble_state="waiting"

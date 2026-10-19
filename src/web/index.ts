@@ -119,6 +119,8 @@ function plantbookError(err: unknown): never {
 }
 
 const router = new Router()
+  // Lets the installer tell this app apart from another program on the same port.
+  .on('GET', '/api/health', () => ({ app: 'plant-monitor', uptimeSeconds: Math.round(process.uptime()) }))
   .on('GET', '/api/plants', () => {
     const now = Date.now();
     const interval = intervalMinutes(store);
@@ -243,6 +245,18 @@ const server = createServer(async (req, res) => {
     if (!res.headersSent) res.writeHead(status, { 'Content-Type': 'text/plain' });
     res.end(err instanceof Error ? err.message : 'Error');
   }
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    log.error(
+      `Port ${config.port} is already used by another program. Re-run ./scripts/install.sh (it picks a free port), ` +
+        `or set a free PORT in .env and run: pm2 restart plant-web --update-env`,
+    );
+  } else {
+    log.error(`Web server failed: ${err.message}`);
+  }
+  process.exit(1);
 });
 
 server.listen(config.port, config.host, () => {
