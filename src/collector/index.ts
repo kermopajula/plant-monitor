@@ -14,6 +14,7 @@ import { SETTINGS, Store, type SensorRow } from '../db';
 import { createLogger } from '../lib/log';
 import { METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
 import { errorMessage, retry, sleep } from '../lib/retry';
+import { decidePoll } from '../lib/poll-policy';
 import { intervalMinutes } from '../plants';
 // './ble' is loaded in main(): noble opens the Bluetooth socket while loading and
 // throws if that fails, which we want to report rather than crash on.
@@ -25,6 +26,8 @@ let ble: FloraBle;
 
 /** If a cycle takes longer than this, BLE is probably wedged: exit and let PM2 restart us. */
 const CYCLE_WATCHDOG_MS = 15 * 60_000;
+/** After a failed battery/firmware read, wait this long before connecting for it again. */
+const INFO_RETRY_MS = 6 * 3600_000;
 
 interface Heard {
   rssi: number;
@@ -75,31 +78,46 @@ async function runCycle(): Promise<Record<string, unknown>> {
 
     const batteryFresh =
       h.values.battery != null || (s.battery_at != null && now - s.battery_at < config.batteryReadHours * 3600_000);
-    const needInfo = !batteryFresh || !s.firmware;
-    if (passive && !needInfo) {
-      store.setError(s.mac, null, now);
+    const action = decidePoll({
+      passive,
+      batteryFresh,
+      firmwareKnown: !!s.firmware,
+      infoAttemptAt: s.info_attempt_at,
+      now,
+      infoRetryMs: INFO_RETRY_MS,
+    });
+    if (action === 'none') {
+      // Keep a battery/firmware error visible until that read works.
+      if (batteryFresh && s.firmware) store.setError(s.mac, null, now);
       continue;
     }
 
+    store.markInfoAttempt(s.mac, now);
     try {
-      const r = await retry(() => ble.poll(s.mac, !passive, s.firmware), {
+      const r = await retry(() => ble.poll(s.mac, action === 'data', s.firmware), {
         attempts: config.pollAttempts,
         baseDelayMs: 2000,
         onError: (err, attempt) => log.warn(`${label(s)}: poll attempt ${attempt} failed: ${errorMessage(err)}`),
       });
       const ts = Date.now();
       if (r.firmware && r.firmware !== s.firmware) log.info(`${label(s)}: firmware ${r.firmware}`);
-      store.setDeviceInfo(s.mac, { battery: r.battery, firmware: r.firmware || null }, ts);
-      summary.deviceInfo++;
+      store.setDeviceInfo(s.mac, { battery: r.battery, firmware: r.firmware }, ts);
+      if (r.battery != null || r.firmware) summary.deviceInfo++;
       if (r.values) {
         store.insertReading(s.mac, ts, r.values, 'active');
         store.setMode(s.mac, 'active');
         summary.active++;
       }
-      store.setError(s.mac, null, ts);
+      if (r.infoError) {
+        log.warn(`${label(s)}: could not read battery/firmware: ${r.infoError}`);
+        store.setError(s.mac, `Could not read battery/firmware: ${r.infoError}`, ts);
+      } else {
+        store.setError(s.mac, null, ts);
+      }
     } catch (err) {
       summary.failed++;
-      const msg = `Active read failed: ${errorMessage(err)}`;
+      const what = action === 'info' ? `Battery/firmware read failed (next try in ${INFO_RETRY_MS / 3600_000} h)` : 'Active read failed';
+      const msg = `${what}: ${errorMessage(err)}`;
       log.error(`${label(s)}: ${msg}`);
       store.setError(s.mac, msg, Date.now());
     }

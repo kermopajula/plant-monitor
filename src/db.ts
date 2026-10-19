@@ -32,6 +32,8 @@ export interface SensorRow {
   ble_name: string | null;
   last_error: string | null;
   last_error_at: number | null;
+  /** Last attempt to read battery/firmware by connecting (successful or not). */
+  info_attempt_at: number | null;
 }
 
 export interface ReadingRow extends Measurement {
@@ -85,6 +87,7 @@ const MIGRATIONS = [
      mac TEXT NOT NULL, plant TEXT NOT NULL, problem TEXT NOT NULL, detail TEXT NOT NULL,
      created_at INTEGER NOT NULL
    );`,
+  `ALTER TABLE sensors ADD COLUMN info_attempt_at INTEGER;`,
 ];
 
 export class Store {
@@ -179,6 +182,10 @@ export class Store {
     if (info.battery != null) {
       this.db.prepare('UPDATE sensors SET battery = ?, battery_at = ? WHERE mac = ?').run(info.battery, ts, mac);
     }
+  }
+
+  markInfoAttempt(mac: string, ts: number) {
+    this.db.prepare('UPDATE sensors SET info_attempt_at = ? WHERE mac = ?').run(ts, mac);
   }
 
   setMode(mac: string, mode: 'passive' | 'active') {

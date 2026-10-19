@@ -249,6 +249,11 @@ Each cycle (every `interval` minutes):
 3. **Daily device info.** If battery is older than `BATTERY_READ_HOURS` or the firmware is unknown, the collector
    connects once to read handle `0x38`. Passive-only sensors therefore get a connection about once a day.
 
+If a sensor answers a handle read with an error (handle numbers can differ between firmware versions), the
+collector reads the same values by characteristic UUID instead: service `1204`, characteristics `1a00` (mode
+change), `1a01` (sensor data) and `1a02` (battery/firmware). It remembers this per sensor. If a battery/firmware
+read fails, the collector waits 6 hours before connecting for it again, to spare the sensor's battery.
+
 All BLE operations have timeouts. Connections are retried `POLL_ATTEMPTS` times with backoff (2 s, 4 s, …) and
 are always disconnected afterwards. A failure is stored on the sensor and shown on its card. A scan can also
 yield only some of the four values; the reading is then stored as is, and the dashboard uses the newest value of

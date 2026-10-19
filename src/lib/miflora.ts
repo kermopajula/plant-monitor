@@ -22,6 +22,13 @@ export const HANDLE_REALTIME_DATA = 0x35;
 export const HANDLE_FIRMWARE_BATTERY = 0x38;
 export const MODE_CHANGE_COMMAND = Buffer.from([0xa0, 0x1f]);
 
+// The same values by GATT UUID (data service 0x1204). Handle numbers can differ
+// between firmware versions; these UUIDs are the fallback when a handle read fails.
+export const DATA_SERVICE_UUID = '1204';
+export const CHAR_MODE_CHANGE = '1a00';
+export const CHAR_REALTIME_DATA = '1a01';
+export const CHAR_FIRMWARE_BATTERY = '1a02';
+
 export interface MiBeacon {
   productId: number;
   frameCounter: number;
