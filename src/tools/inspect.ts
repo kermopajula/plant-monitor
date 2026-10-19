@@ -87,12 +87,16 @@ async function main() {
   printAdvert(p);
 
   console.log('\n== Connecting ==');
+  const t0 = Date.now();
+  const since = () => `${((Date.now() - t0) / 1000).toFixed(1)} s`;
+  p.once('disconnect', () => console.log(`  >> sensor disconnected after ${since()}`));
   await withTimeout(p.connectAsync(), 20_000, 'connect');
   try {
-    console.log('connected');
+    console.log(`connected after ${since()}`);
     console.log('\n== GATT services and characteristics ==');
     try {
-      const { services } = await withTimeout(p.discoverAllServicesAndCharacteristicsAsync(), 30_000, 'discover services');
+      const { services } = await withTimeout(p.discoverAllServicesAndCharacteristicsAsync(), 15_000, 'discover services');
+      console.log(`(discovery took ${since()})`);
       if (!services.length) console.log('(no services)');
       for (const sv of services) {
         console.log(`service ${sv.uuid}${sv.name ? ` (${sv.name})` : ''}`);
@@ -112,7 +116,7 @@ async function main() {
 
     console.log('\n== Raw handles 0x01-0x60 that return data ==');
     let any = false;
-    for (let h = 0x01; h <= 0x60; h++) {
+    for (let h = 0x01; h <= 0x60 && p.state === 'connected'; h++) {
       try {
         const buf = await withTimeout(p.readHandleAsync(h), 3_000, 'read');
         if (buf.length) {
@@ -122,16 +126,15 @@ async function main() {
       } catch {
         /* unreadable or timed out */
       }
-      if (p.state !== 'connected') {
-        console.log(`  (sensor disconnected at handle 0x${h.toString(16)})`);
-        break;
-      }
     }
-    if (!any) console.log('  (none)');
+    if (p.state !== 'connected') console.log('  (skipped: not connected)');
+    else if (!any) console.log('  (none)');
   } finally {
     await withTimeout(p.disconnectAsync(), 5_000, 'disconnect').catch(() => undefined);
   }
-  console.log('\nDone. Nothing was written to the sensor.');
+  const bluez = require('node:child_process').spawnSync('systemctl', ['is-active', 'bluetooth'], { encoding: 'utf8' });
+  console.log(`\nSystem bluetooth service (bluetoothd): ${(bluez.stdout || 'unknown').trim()}`);
+  console.log('Done. Nothing was written to the sensor.');
 }
 
 main()
