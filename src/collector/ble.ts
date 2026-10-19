@@ -1,7 +1,10 @@
 // BLE access via @abandonware/noble. Only the collector process imports this:
 // loading noble opens the HCI socket.
 
-import * as noble from '@abandonware/noble';
+// noble exports a single Noble instance whose methods live on its prototype.
+// `import * as` would copy only its own properties (losing on(), startScanningAsync(), ...),
+// so take the module object as is.
+import noble = require('@abandonware/noble');
 import { needsModeChange } from '../lib/firmware';
 import { createLogger } from '../lib/log';
 import {
