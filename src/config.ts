@@ -52,6 +52,10 @@ export const config = {
   resendDigestTime: parseTimeOfDay(str('RESEND_DIGEST_TIME', '08:00')),
   /** Default quiet hours for ntfy/webhook ("off" to disable); can be changed on the setup page. */
   defaultQuietHours: str('QUIET_HOURS', '21:00-08:00'),
+  /** Default winter season (MM-DD..MM-DD, "off" to disable); can be changed on the setup page. */
+  defaultWinterSeason: str('WINTER_SEASON', '10-01..03-01'),
+  /** In winter, light only counts as too low below this share of the plant's minimum. */
+  winterLightFactor: num('WINTER_LIGHT_FACTOR', 0.3),
   dashboardUrl: str('DASHBOARD_URL'),
 };
 

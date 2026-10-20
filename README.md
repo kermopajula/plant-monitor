@@ -292,6 +292,15 @@ How it behaves:
   ntfy/webhook alerts that become due at night are held and sent as one "🌅 While you slept" message when quiet
   hours end, saying for each problem whether it is still ongoing or resolved by now. The daily email is not
   affected. "Back to normal" messages are not sent during quiet hours.
+- **Winter season** (default `10-01..03-01`, i.e. 1 October to the end of February; change on the setup page or
+  with `WINTER_SEASON`, `off` to disable). Houseplants in Estonia and similar latitudes rest while the days are
+  short, and should not be fed until growth resumes in March. During this window:
+  - low conductivity is not a problem, so there are no "Needs fertilizer" alerts (an open one is dropped
+    quietly). "Too much fertilizer" still alerts, since salts build up when plants barely drink.
+  - the low-light limit is lowered to `WINTER_LIGHT_FACTOR` (default `0.3`) times the plant's minimum, e.g.
+    1500 lx becomes 450 lx. Normal winter light stays quiet, but a plant that is too dark even for winter still
+    alerts; a brighter window or a grow light helps.
+  - moisture, temperature and offline alerts are unchanged.
 - Use **Send test alert** on the setup page to check the configuration. It sends right away on every channel,
   including email.
 

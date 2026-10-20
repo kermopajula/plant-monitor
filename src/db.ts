@@ -347,4 +347,5 @@ export const SETTINGS = {
   collectorStatus: 'collector_status',
   digestLastDay: 'digest_last_day',
   quietHours: 'quiet_hours',
+  winterSeason: 'winter_season',
 } as const;

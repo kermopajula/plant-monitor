@@ -73,6 +73,8 @@ export interface StatusInput {
   lastReadingAt: number | null;
   now: number;
   staleAfterMs: number;
+  /** Set during the winter season, see seasonalRanges(). */
+  winter?: { lightFactor: number } | null;
 }
 
 export interface StatusResult {
@@ -82,11 +84,22 @@ export interface StatusResult {
   label: string;
 }
 
+/**
+ * Ranges used for judging in winter: the minimum light is scaled down, since
+ * winter daylight is far weaker than what species ranges assume. A plant
+ * below even that is still too dark (a brighter spot or a grow light helps).
+ */
+export function seasonalRanges(ranges: Ranges, winter: StatusInput['winter']): Ranges {
+  if (!winter || ranges.lux.min == null) return ranges;
+  return { ...ranges, lux: { ...ranges.lux, min: Math.round(ranges.lux.min * winter.lightFactor) } };
+}
+
 export function evaluateStatus(input: StatusInput): StatusResult {
   const levels = {} as Record<Metric, Level>;
+  const ranges = seasonalRanges(input.ranges, input.winter);
   for (const m of METRICS) {
     const v = m === 'lux' && input.lightPeak24h != null ? input.lightPeak24h : input.values[m];
-    levels[m] = checkRange(v, input.ranges[m]);
+    levels[m] = checkRange(v, ranges[m]);
   }
 
   if (input.lastReadingAt == null || input.now - input.lastReadingAt > input.staleAfterMs) {
@@ -96,6 +109,7 @@ export function evaluateStatus(input: StatusInput): StatusResult {
   const problems: Problem[] = [];
   for (const m of METRICS) {
     const l = levels[m];
+    if (m === 'conductivity' && l === 'low' && input.winter) continue; // no feeding in winter
     if (l === 'low' || l === 'high') problems.push(PROBLEM_BY_LEVEL[m][l]);
   }
   if (problems.length) {

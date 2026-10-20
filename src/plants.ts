@@ -3,9 +3,13 @@
 import { config } from './config';
 import { rangesOf, SETTINGS, type SensorRow, type Store } from './db';
 import { describeFirmware, type FirmwareInfo } from './lib/firmware';
-import { DEFAULT_RANGES, evaluateStatus, hasAnyRange, type Metric, type Ranges, type StatusResult } from './lib/status';
+import { createLogger } from './lib/log';
+import { isWinter, parseWinterSeason, type WinterSeason } from './lib/winter';
+import { errorMessage } from './lib/retry';
+import { DEFAULT_RANGES, evaluateStatus, hasAnyRange, seasonalRanges, type Metric, type Ranges, type StatusResult } from './lib/status';
 
 const HOUR = 3600_000;
+const log = createLogger('plants');
 
 export interface PlantView {
   mac: string;
@@ -18,6 +22,10 @@ export interface PlantView {
   lightPeak24h: number | null;
   ranges: Ranges;
   rangesSource: 'plantbook' | 'custom' | 'default';
+  /** Whether the winter season is on (no fertilizer alerts, lower light minimum). */
+  winter: boolean;
+  /** Ranges the status was judged against (the light minimum is lower in winter). */
+  judgedRanges: Ranges;
   status: StatusResult;
   battery: number | null;
   batteryAt: number | null;
@@ -33,6 +41,17 @@ export function intervalMinutes(store: Store): number {
   return store.getNumberSetting(SETTINGS.intervalMinutes, config.defaultIntervalMinutes);
 }
 
+/** Winter season from the setup page, else WINTER_SEASON from .env. An invalid value means none. */
+export function winterSeason(store: Store): WinterSeason | null {
+  const raw = store.getSetting(SETTINGS.winterSeason) ?? config.defaultWinterSeason;
+  try {
+    return parseWinterSeason(raw);
+  } catch (err) {
+    log.warn(errorMessage(err));
+    return null;
+  }
+}
+
 /** A plant is "offline" after missing about three reads (at least one hour). */
 export function staleAfterMs(intervalMin: number): number {
   return Math.max(HOUR, 3 * intervalMin * 60_000 + config.scanSeconds * 1000);
@@ -46,6 +65,7 @@ export function buildPlantView(store: Store, s: SensorRow, now: number, interval
   const own = rangesOf(s);
   const custom = hasAnyRange(own);
   const ranges = custom ? own : DEFAULT_RANGES;
+  const winter = isWinter(now, winterSeason(store)) ? { lightFactor: config.winterLightFactor } : null;
   let imageUrl: string | null = null;
   if (s.plant_pid) {
     const cached = store.getSpecies(s.plant_pid);
@@ -62,6 +82,8 @@ export function buildPlantView(store: Store, s: SensorRow, now: number, interval
     lightPeak24h,
     ranges,
     rangesSource: custom ? (s.ranges_source ?? 'custom') : 'default',
+    winter: winter != null,
+    judgedRanges: seasonalRanges(ranges, winter),
     status: evaluateStatus({
       values: latest.values,
       lightPeak24h,
@@ -69,6 +91,7 @@ export function buildPlantView(store: Store, s: SensorRow, now: number, interval
       lastReadingAt,
       now,
       staleAfterMs: stale,
+      winter,
     }),
     battery: s.battery,
     batteryAt: s.battery_at,

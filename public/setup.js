@@ -42,11 +42,15 @@
       f.intervalMinutes.value = settings.intervalMinutes;
       f.alertAfterMinutes.value = settings.alertAfterMinutes;
       f.quietHours.value = settings.quietHours;
+      f.winterSeason.value = settings.winterSeason;
     }
     $('alerts-note').textContent = settings.notifiers.length
       ? `Alerts are sent via ${settings.notifiers.join(' and ')} when a value stays out of range for the time above.` +
         (settings.quietHours !== 'off'
           ? ` During quiet hours (${settings.quietHours}) alerts are held and sent together when they end.`
+          : '') +
+        (settings.winterSeason !== 'off'
+          ? ` In winter (${settings.winterSeason}${settings.winterNow ? ', now' : ''}) there are no "Needs fertilizer" alerts, and light only counts as too low below ${settings.winterLightPercent}% of the plant's minimum.`
           : '')
       : 'Alerts are off. Set NTFY_URL, WEBHOOK_URL or RESEND_API_KEY in .env and restart (see README).';
     $('test-alert').hidden = !settings.notifiers.length;
@@ -62,6 +66,7 @@
           intervalMinutes: Number(f.intervalMinutes.value),
           alertAfterMinutes: Number(f.alertAfterMinutes.value),
           quietHours: f.quietHours.value,
+          winterSeason: f.winterSeason.value,
         },
       });
       toast('Settings saved');
