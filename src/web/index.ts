@@ -7,13 +7,14 @@ import { rangesOf, SETTINGS, Store, type SensorRow } from '../db';
 import { UPDATE_STEPS, UPDATE_WARNINGS, describeFirmware } from '../lib/firmware';
 import { formatTimeOfDay } from '../lib/digest';
 import { createLogger } from '../lib/log';
+import { formatQuietHours, parseQuietHours } from '../lib/quiet-hours';
 import { normalizeMac } from '../lib/miflora';
 import { createNotifiers } from '../lib/notifiers';
 import { PlantbookClient, PlantbookError, rangesFromPlantbook, type PlantDetail } from '../lib/plantbook';
 import { errorMessage } from '../lib/retry';
 import { METRICS, type Ranges } from '../lib/status';
 import { buildPlantView, intervalMinutes } from '../plants';
-import { Alerter, alertAfterMinutes } from './alerter';
+import { Alerter, alertAfterMinutes, quietHours } from './alerter';
 import { HttpError, Router, sendFile } from './http';
 
 const log = createLogger('web');
@@ -192,6 +193,7 @@ const router = new Router()
     return {
       intervalMinutes: intervalMinutes(store),
       alertAfterMinutes: alertAfterMinutes(store),
+      quietHours: formatQuietHours(quietHours(store)),
       scanSeconds: config.scanSeconds,
       plantbookConfigured: plantbook.configured,
       notifiers: notifiers.map((n) => (n.digest ? `email via ${n.name} (daily digest at ${formatTimeOfDay(config.resendDigestTime)})` : n.name)),
@@ -202,6 +204,15 @@ const router = new Router()
   .on('PUT', '/api/settings', ({ body }) => {
     const b = obj(body);
     if ('intervalMinutes' in b) store.setSetting(SETTINGS.intervalMinutes, intInRange(b.intervalMinutes, 'intervalMinutes', 5, 1440));
+    if ('quietHours' in b) {
+      let q;
+      try {
+        q = parseQuietHours(String(b.quietHours ?? ''));
+      } catch (err) {
+        throw new HttpError(400, errorMessage(err));
+      }
+      store.setSetting(SETTINGS.quietHours, formatQuietHours(q));
+    }
     if ('alertAfterMinutes' in b) {
       store.setSetting(SETTINGS.alertAfterMinutes, intInRange(b.alertAfterMinutes, 'alertAfterMinutes', 0, 10080));
     }

@@ -50,6 +50,8 @@ export const config = {
   resendTo: str('RESEND_TO'),
   /** Local time (HH:MM) of the daily email digest. */
   resendDigestTime: parseTimeOfDay(str('RESEND_DIGEST_TIME', '08:00')),
+  /** Default quiet hours for ntfy/webhook ("off" to disable); can be changed on the setup page. */
+  defaultQuietHours: str('QUIET_HOURS', '21:00-08:00'),
   dashboardUrl: str('DASHBOARD_URL'),
 };
 

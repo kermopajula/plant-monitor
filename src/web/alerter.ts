@@ -6,6 +6,7 @@ import { config } from '../config';
 import { SETTINGS, type Store } from '../db';
 import { planAlerts, type AlertState } from '../lib/alerts';
 import { buildDigest, digestDue, formatTimeOfDay, localDayKey } from '../lib/digest';
+import { isQuietTime, parseQuietHours, type QuietHours } from '../lib/quiet-hours';
 import { createLogger } from '../lib/log';
 import type { Notification, Notifier } from '../lib/notifiers';
 import { errorMessage } from '../lib/retry';
@@ -25,6 +26,17 @@ const PROBLEM_METRIC: Partial<Record<Problem, Metric>> = {
   too_cold: 'temperature',
   too_hot: 'temperature',
 };
+
+/** Quiet hours from the setup page, else QUIET_HOURS from .env. An invalid value means none. */
+export function quietHours(store: Store): QuietHours | null {
+  const raw = store.getSetting(SETTINGS.quietHours) ?? config.defaultQuietHours;
+  try {
+    return parseQuietHours(raw);
+  } catch (err) {
+    log.warn(errorMessage(err));
+    return null;
+  }
+}
 
 export function alertAfterMinutes(store: Store): number {
   return store.getNumberSetting(SETTINGS.alertAfterMinutes, config.defaultAlertAfterMinutes);
@@ -104,7 +116,7 @@ export class Alerter {
           // Nothing was delivered or queued: leave them un-notified so the next check retries.
           for (const a of plan.notify) a.notifiedAt = null;
         }
-        if (plan.resolved.length && config.alertSendResolved && this.immediate.length) {
+        if (plan.resolved.length && config.alertSendResolved && this.immediate.length && !isQuietTime(now, quietHours(this.store))) {
           await this.send(
             {
               kind: 'resolved',
@@ -117,6 +129,7 @@ export class Alerter {
         }
         this.store.replaceAlertStates(s.mac, plan.state);
       }
+      await this.sendHeldIfQuietOver(now);
       await this.sendDigestIfDue(now);
     } catch (err) {
       log.error(`alert check failed: ${errorMessage(err)}`);
@@ -128,7 +141,11 @@ export class Alerter {
   /** Sends to immediate channels and queues for digest channels. True if any of that worked. */
   private async deliver(view: PlantView, alerts: AlertState[], now: number): Promise<boolean> {
     let delivered = false;
-    if (this.immediate.length) {
+    if (this.immediate.length && isQuietTime(now, quietHours(this.store))) {
+      this.store.enqueueDigest(this.entries(view, alerts, now), 'quiet');
+      delivered = true;
+      log.info(`quiet hours, held until they end: ${view.name}: ${alerts.map((a) => a.problem).join(', ')}`);
+    } else if (this.immediate.length) {
       try {
         await this.send(
           {
@@ -146,21 +163,19 @@ export class Alerter {
       }
     }
     if (this.daily.length) {
-      this.store.enqueueDigest(
-        alerts.map((a) => ({ mac: view.mac, plant: view.name, problem: a.problem, detail: describe(view, a), createdAt: now })),
-      );
+      this.store.enqueueDigest(this.entries(view, alerts, now), 'daily');
       delivered = true;
       log.info(`queued for daily digest: ${view.name}: ${alerts.map((a) => a.problem).join(', ')}`);
     }
     return delivered;
   }
 
-  /** Once a day, sends all queued alerts as one message. A failed send is retried on the next check. */
-  private async sendDigestIfDue(now: number) {
-    if (!this.daily.length) return;
-    if (!digestDue(now, this.store.getSetting(SETTINGS.digestLastDay), config.resendDigestTime)) return;
+  private entries(view: PlantView, alerts: AlertState[], now: number) {
+    return alerts.map((a) => ({ mac: view.mac, plant: view.name, problem: a.problem, detail: describe(view, a), createdAt: now }));
+  }
 
-    const entries = this.store.digestQueue();
+  /** Whether a problem is still open right now (for "still ongoing" / "resolved now" in summaries). */
+  private isOpen(): (mac: string, problem: Problem) => boolean {
     const open = new Set(
       this.store
         .listSensors()
@@ -168,7 +183,31 @@ export class Alerter {
         .filter((a) => a.clearedSince == null)
         .map((a) => `${a.mac}|${a.problem}`),
     );
-    const digest = buildDigest(entries, (mac, problem) => open.has(`${mac}|${problem}`));
+    return (mac, problem) => open.has(`${mac}|${problem}`);
+  }
+
+  /** After quiet hours, sends everything held overnight as one message. A failed send is retried on the next check. */
+  private async sendHeldIfQuietOver(now: number) {
+    if (!this.immediate.length || isQuietTime(now, quietHours(this.store))) return;
+    const entries = this.store.digestQueue('quiet');
+    const summary = buildDigest(entries, this.isOpen(), undefined, '🌅 While you slept');
+    if (!summary) return;
+    try {
+      await this.send({ kind: 'problem', ...summary, url: config.dashboardUrl || undefined }, this.immediate);
+    } catch {
+      return;
+    }
+    this.store.deleteDigestEntries(entries.map((e) => e.id));
+    log.info(`sent alerts held during quiet hours: ${summary.title}`);
+  }
+
+  /** Once a day, sends all queued alerts as one message. A failed send is retried on the next check. */
+  private async sendDigestIfDue(now: number) {
+    if (!this.daily.length) return;
+    if (!digestDue(now, this.store.getSetting(SETTINGS.digestLastDay), config.resendDigestTime)) return;
+
+    const entries = this.store.digestQueue('daily');
+    const digest = buildDigest(entries, this.isOpen());
     if (digest) {
       try {
         await this.send({ kind: 'problem', ...digest, url: config.dashboardUrl || undefined }, this.daily);

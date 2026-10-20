@@ -36,6 +36,8 @@ export interface SensorRow {
   info_attempt_at: number | null;
 }
 
+export type QueueName = 'daily' | 'quiet';
+
 export interface ReadingRow extends Measurement {
   ts: number;
 }
@@ -88,6 +90,7 @@ const MIGRATIONS = [
      created_at INTEGER NOT NULL
    );`,
   `ALTER TABLE sensors ADD COLUMN info_attempt_at INTEGER;`,
+  `ALTER TABLE digest_queue ADD COLUMN queue TEXT NOT NULL DEFAULT 'daily';`,
 ];
 
 export class Store {
@@ -302,19 +305,22 @@ export class Store {
 
   // --- daily digest queue ---
 
-  enqueueDigest(entries: Omit<DigestEntry, 'id'>[]) {
+  /** `queue`: 'daily' = email digest, 'quiet' = held during quiet hours. */
+  enqueueDigest(entries: Omit<DigestEntry, 'id'>[], queue: QueueName = 'daily') {
     const ins = this.db.prepare(
-      'INSERT INTO digest_queue (mac, plant, problem, detail, created_at) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO digest_queue (mac, plant, problem, detail, created_at, queue) VALUES (?, ?, ?, ?, ?, ?)',
     );
     this.db.transaction(() => {
-      for (const e of entries) ins.run(e.mac, e.plant, e.problem, e.detail, e.createdAt);
+      for (const e of entries) ins.run(e.mac, e.plant, e.problem, e.detail, e.createdAt, queue);
     })();
   }
 
-  digestQueue(): DigestEntry[] {
+  digestQueue(queue: QueueName = 'daily'): DigestEntry[] {
     return this.db
-      .prepare('SELECT id, mac, plant, problem, detail, created_at AS createdAt FROM digest_queue ORDER BY created_at, id')
-      .all() as DigestEntry[];
+      .prepare(
+        'SELECT id, mac, plant, problem, detail, created_at AS createdAt FROM digest_queue WHERE queue = ? ORDER BY created_at, id',
+      )
+      .all(queue) as DigestEntry[];
   }
 
   deleteDigestEntries(ids: number[]) {
@@ -340,4 +346,5 @@ export const SETTINGS = {
   scanRequestedAt: 'scan_requested_at',
   collectorStatus: 'collector_status',
   digestLastDay: 'digest_last_day',
+  quietHours: 'quiet_hours',
 } as const;

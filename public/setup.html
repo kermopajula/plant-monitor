@@ -39,6 +39,7 @@
       <form id="settings" class="row">
         <label class="field narrow">Read every (minutes)<input type="number" name="intervalMinutes" min="5" max="1440" step="1" required></label>
         <label class="field narrow">Alert after (minutes)<input type="number" name="alertAfterMinutes" min="0" max="10080" step="1" required></label>
+        <label class="field narrow quiet">Quiet hours<input type="text" name="quietHours" placeholder="21:00-08:00" title="HH:MM-HH:MM, or off" required></label>
         <button class="btn primary" type="submit">Save</button>
       </form>
       <p class="subtle" id="alerts-note"></p>

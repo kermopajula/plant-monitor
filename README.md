@@ -288,6 +288,10 @@ How it behaves:
   hovering around a limit from alerting over and over. Set `ALERT_SEND_RESOLVED=true` to get a message when a
   problem is resolved.
 - A sensor going silent produces a "No recent data" alert.
+- **Quiet hours** (default `21:00-08:00`, change on the setup page or with `QUIET_HOURS`, `off` to disable):
+  ntfy/webhook alerts that become due at night are held and sent as one "🌅 While you slept" message when quiet
+  hours end, saying for each problem whether it is still ongoing or resolved by now. The daily email is not
+  affected. "Back to normal" messages are not sent during quiet hours.
 - Use **Send test alert** on the setup page to check the configuration. It sends right away on every channel,
   including email.
 

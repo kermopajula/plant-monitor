@@ -41,9 +41,13 @@
     if (document.activeElement?.form !== f) {
       f.intervalMinutes.value = settings.intervalMinutes;
       f.alertAfterMinutes.value = settings.alertAfterMinutes;
+      f.quietHours.value = settings.quietHours;
     }
     $('alerts-note').textContent = settings.notifiers.length
-      ? `Alerts are sent via ${settings.notifiers.join(' and ')} when a value stays out of range for the time above.`
+      ? `Alerts are sent via ${settings.notifiers.join(' and ')} when a value stays out of range for the time above.` +
+        (settings.quietHours !== 'off'
+          ? ` During quiet hours (${settings.quietHours}) alerts are held and sent together when they end.`
+          : '')
       : 'Alerts are off. Set NTFY_URL, WEBHOOK_URL or RESEND_API_KEY in .env and restart (see README).';
     $('test-alert').hidden = !settings.notifiers.length;
   }
@@ -54,7 +58,11 @@
     act(f.querySelector('button'), async () => {
       await api('/api/settings', {
         method: 'PUT',
-        body: { intervalMinutes: Number(f.intervalMinutes.value), alertAfterMinutes: Number(f.alertAfterMinutes.value) },
+        body: {
+          intervalMinutes: Number(f.intervalMinutes.value),
+          alertAfterMinutes: Number(f.alertAfterMinutes.value),
+          quietHours: f.quietHours.value,
+        },
       });
       toast('Settings saved');
       await loadSettings();

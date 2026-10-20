@@ -209,3 +209,4 @@ details.fw-help > summary:hover { color: var(--text-2); border-color: var(--bord
 details.fw-help > .panel { text-align: left; margin-top: 8px; }
 .fw-hint { color: var(--text-3); font-size: 0.8rem; text-decoration: underline dotted; margin-left: 2px; }
 .fw-hint:hover { color: var(--text-2); }
+.field.quiet input { width: 150px; }

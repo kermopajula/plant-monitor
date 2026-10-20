@@ -82,6 +82,7 @@ describe('Alerter with a daily digest channel', () => {
   it('sends ntfy/webhook immediately and email once a day with everything aggregated', async () => {
     const store = new Store(':memory:');
     store.setSetting('alert_after_minutes', 0);
+    store.setSetting('quiet_hours', 'off'); // these times (07:00) would otherwise be quiet hours
     for (const [mac, name] of [['A', 'Monstera'], ['B', 'Fern']]) {
       store.markSeen(mac, at(6), -60, null);
       store.updateSensor(mac, { adopted: 1, name });

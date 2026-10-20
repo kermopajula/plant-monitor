@@ -58,6 +58,7 @@ export function buildDigest(
   entries: DigestEntry[],
   isOpen: (mac: string, problem: Problem) => boolean,
   formatTime: (ts: number) => string = defaultTime,
+  titlePrefix = '🪴 Plant digest',
 ): { title: string; message: string } | null {
   if (!entries.length) return null;
 
@@ -91,7 +92,7 @@ export function buildDigest(
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const summary = open === total ? '' : open === 0 ? ' (all resolved)' : ` (${open} still ongoing)`;
   return {
-    title: `🪴 Plant digest: ${plural(total, 'problem')} on ${plural(plants.size, 'plant')}${summary}`,
+    title: `${titlePrefix}: ${plural(total, 'problem')} on ${plural(plants.size, 'plant')}${summary}`,
     message: blocks.join('\n\n'),
   };
 }
