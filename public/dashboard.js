@@ -32,17 +32,24 @@
 
   function metricRow(p, m) {
     const meta = METRICS[m];
-    const r = p.ranges[m];
+    // Ranges the status was judged against: in winter the light minimum is lower.
+    const r = (p.judgedRanges || p.ranges)[m];
     const judged = m === 'lux' && p.lightPeak24h != null ? p.lightPeak24h : p.values[m];
     let sub = rangeText(r, meta.unit);
     let name = meta.label;
     if (m === 'lux') {
       name = 'Light <span class="subtle">(24 h peak)</span>';
-      sub = `now ${fmt(p.values.lux)} lx · ${sub}`;
+      sub = `now ${fmt(p.values.lux)} lx · ${sub}${p.winter ? ' (winter)' : ''}`;
     }
-    return `<li>
+    // Low fertility in winter is expected: plants rest and are not fed until spring.
+    const resting = m === 'conductivity' && p.winter && p.status.levels[m] === 'low';
+    const badge = resting
+      ? '<span class="level resting" title="Plants rest in winter, no fertilizer until spring">❄ Resting</span>'
+      : levelBadge(p.status.levels[m]);
+    if (resting) sub += ' · low is fine in winter';
+    return `<li${resting ? ' class="resting"' : ''}>
       <div class="metric-top"><span class="metric-name">${name}</span>
-        <span><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${levelBadge(p.status.levels[m])}</span></div>
+        <span><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${badge}</span></div>
       ${gauge(judged, r, meta.log)}
       <div class="metric-sub"><span>${sub}</span></div>
     </li>`;
