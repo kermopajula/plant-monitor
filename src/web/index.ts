@@ -13,6 +13,7 @@ import { normalizeMac } from '../lib/miflora';
 import { createNotifiers } from '../lib/notifiers';
 import { PlantbookClient, PlantbookError, rangesFromPlantbook, type PlantDetail } from '../lib/plantbook';
 import { errorMessage } from '../lib/retry';
+import { errorFields } from '../lib/sensor-error';
 import { METRICS, type Ranges } from '../lib/status';
 import { buildPlantView, intervalMinutes, winterSeason } from '../plants';
 import { Alerter, alertAfterMinutes, quietHours } from './alerter';
@@ -87,13 +88,13 @@ function sensorSummary(s: SensorRow) {
     ranges: rangesOf(s),
     firmware: describeFirmware(s.firmware),
     battery: s.battery,
+    batteryAt: s.battery_at,
     mode: s.mode,
     firstSeen: s.first_seen,
     lastSeen: s.last_seen,
     rssi: s.rssi,
     bleName: s.ble_name,
-    lastError: s.last_error,
-    lastErrorAt: s.last_error_at,
+    ...errorFields(s),
   };
 }
 

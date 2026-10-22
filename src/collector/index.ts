@@ -15,6 +15,7 @@ import { createLogger } from '../lib/log';
 import { GattLayoutError, METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
 import { errorMessage, retry, sleep } from '../lib/retry';
 import { decidePoll } from '../lib/poll-policy';
+import { INFO_ERROR_PREFIX, isInfoError } from '../lib/sensor-error';
 import { intervalMinutes } from '../plants';
 // './ble' is loaded in main(): noble opens the Bluetooth socket while loading and
 // throws if that fails, which we want to report rather than crash on.
@@ -87,8 +88,9 @@ async function runCycle(): Promise<Record<string, unknown>> {
       infoRetryMs: INFO_RETRY_MS,
     });
     if (action === 'none') {
-      // Keep a battery/firmware error visible until that read works.
-      if (batteryFresh && s.firmware) store.setError(s.mac, null, now);
+      // Readings arrived, so any other error is resolved. A battery/firmware
+      // error stays (shown low-key) until that read works.
+      if (s.last_error && (!isInfoError(s.last_error) || (batteryFresh && s.firmware))) store.setError(s.mac, null, now);
       continue;
     }
 
@@ -111,13 +113,13 @@ async function runCycle(): Promise<Record<string, unknown>> {
       }
       if (r.infoError) {
         log.warn(`${label(s)}: could not read battery/firmware: ${r.infoError}`);
-        store.setError(s.mac, `Could not read battery/firmware: ${r.infoError}`, ts);
+        store.setError(s.mac, `${INFO_ERROR_PREFIX}: ${r.infoError}`, ts);
       } else {
         store.setError(s.mac, null, ts);
       }
     } catch (err) {
       summary.failed++;
-      const what = action === 'info' ? `Battery/firmware read failed (next try in ${INFO_RETRY_MS / 3600_000} h)` : 'Active read failed';
+      const what = action === 'info' ? `${INFO_ERROR_PREFIX} (next try in ${INFO_RETRY_MS / 3600_000} h)` : 'Active read failed';
       const msg = `${what}: ${errorMessage(err)}`;
       log.error(`${label(s)}: ${msg}`);
       store.setError(s.mac, msg, Date.now());

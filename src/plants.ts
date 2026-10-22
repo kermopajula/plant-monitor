@@ -6,6 +6,7 @@ import { describeFirmware, type FirmwareInfo } from './lib/firmware';
 import { createLogger } from './lib/log';
 import { isWinter, parseWinterSeason, type WinterSeason } from './lib/winter';
 import { errorMessage } from './lib/retry';
+import { errorFields, type SensorErrorKind } from './lib/sensor-error';
 import { DEFAULT_RANGES, evaluateStatus, hasAnyRange, seasonalRanges, type Metric, type Ranges, type StatusResult } from './lib/status';
 
 const HOUR = 3600_000;
@@ -35,6 +36,7 @@ export interface PlantView {
   rssi: number | null;
   lastError: string | null;
   lastErrorAt: number | null;
+  lastErrorKind: SensorErrorKind | null;
 }
 
 export function intervalMinutes(store: Store): number {
@@ -99,7 +101,6 @@ export function buildPlantView(store: Store, s: SensorRow, now: number, interval
     mode: s.mode,
     lastSeen: s.last_seen,
     rssi: s.rssi,
-    lastError: s.last_error,
-    lastErrorAt: s.last_error_at,
+    ...errorFields(s),
   };
 }

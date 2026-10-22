@@ -118,14 +118,20 @@
   function adoptedItem(s) {
     const source =
       s.rangesSource === 'plantbook' ? 'from Open Plant Book' : s.rangesSource === 'custom' ? 'custom' : 'not set (generic defaults are used)';
-    const error = s.lastError ? `<div class="notice error"><strong>Last read problem</strong>${esc(s.lastError)} <span class="subtle">(${timeAgo(s.lastErrorAt)})</span></div>` : '';
+    // A battery/firmware read failure is secondary (readings still arrive), so keep it low-key.
+    const error = !s.lastError
+      ? ''
+      : s.lastErrorKind === 'info'
+        ? `<p class="subtle">${esc(s.lastError)} (${timeAgo(s.lastErrorAt)})</p>`
+        : `<div class="notice error"><strong>Last read problem</strong>${esc(s.lastError)} <span class="subtle">(${timeAgo(s.lastErrorAt)})</span></div>`;
+    const batteryOld = s.batteryAt != null && Date.now() - s.batteryAt > 36 * 3600_000;
     return `<li data-mac="${esc(s.mac)}">
       <form class="row rename">
         <label class="field" style="flex:1;min-width:180px">Name<input type="text" name="name" maxlength="100" value="${esc(s.name || '')}" required></label>
         <button class="btn" type="submit">Rename</button>
       </form>
       <p class="subtle"><span class="mono">${esc(s.mac)}</span> · firmware ${esc(s.firmware.version || 'unknown (read on first connection)')}
-        · battery ${s.battery == null ? '–' : s.battery + '%'} · ${s.mode || 'no data yet'} · seen ${timeAgo(s.lastSeen)}</p>
+        · battery ${s.battery == null ? '–' : s.battery + '%'}${batteryOld ? ` (read ${timeAgo(s.batteryAt)})` : ''} · ${s.mode || 'no data yet'} · seen ${timeAgo(s.lastSeen)}</p>
       ${firmwareNotice(s.firmware)}${error}
 
       <h3 style="font-size:1rem;margin:14px 0 4px">Species</h3>

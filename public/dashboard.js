@@ -66,7 +66,7 @@
         ? '<div class="notice info">Using generic ranges. Set a species on the <a href="/setup">setup page</a> for plant-specific ones.</div>'
         : '';
     const err =
-      p.lastError && (!p.lastReadingAt || p.lastErrorAt > p.lastReadingAt)
+      p.lastError && p.lastErrorKind !== 'info' && (!p.lastReadingAt || p.lastErrorAt > p.lastReadingAt)
         ? `<div class="notice error"><strong>Last read problem</strong>${esc(p.lastError)} <span class="subtle">(${timeAgo(p.lastErrorAt, now)})</span></div>`
         : '';
     return `
