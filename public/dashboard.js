@@ -34,27 +34,27 @@
 
   function metricRow(p, m) {
     const meta = METRICS[m];
-    // Ranges the status was judged against: in winter the light minimum is lower.
     const r = p.ranges[m];
+    // Low fertility in winter is expected: plants rest and are not fed until spring.
+    // Show it as one quiet line instead of a full row.
+    if (m === 'conductivity' && p.winter && p.status.levels[m] === 'low') {
+      return `<li class="resting" title="Plants rest in winter, no fertilizer until spring (${esc(rangeText(r, meta.unit))})">
+        <span class="metric-name">${meta.label}</span><span>❄ resting · ${fmt(p.values[m], m)} ${meta.unit}</span></li>`;
+    }
     // In winter the light minimum is lowered (see WINTER_LIGHT_FACTOR); show both.
     const winterMin = m === 'lux' && p.winter && p.judgedRanges ? p.judgedRanges.lux.min : null;
     const judged = m === 'lux' && p.lightPeak24h != null ? p.lightPeak24h : p.values[m];
     let sub = rangeText(r, meta.unit);
     let name = meta.label;
+    let valueTitle = '';
     if (m === 'lux') {
-      name = 'Light <span class="subtle">(24 h peak)</span>';
-      sub = `now ${fmt(p.values.lux)} lx · ${sub}`;
-      if (winterMin != null && winterMin !== r.min) sub += ` · ❄ winter min ${fmt(winterMin)} lx`;
+      name = '<span title="Brightest reading of the last 24 h">Light</span>';
+      valueTitle = ` title="24 h peak · now ${fmt(p.values.lux)} lx"`;
+      if (winterMin != null && winterMin !== r.min) sub += ` · ❄ ≥${fmt(winterMin)} in winter`;
     }
-    // Low fertility in winter is expected: plants rest and are not fed until spring.
-    const resting = m === 'conductivity' && p.winter && p.status.levels[m] === 'low';
-    const badge = resting
-      ? '<span class="level resting" title="Plants rest in winter, no fertilizer until spring">❄ Resting</span>'
-      : levelBadge(p.status.levels[m]);
-    if (resting) sub += ' · low is fine in winter';
-    return `<li${resting ? ' class="resting"' : ''}>
+    return `<li>
       <div class="metric-top"><span class="metric-name">${name}</span>
-        <span><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${badge}</span></div>
+        <span${valueTitle}><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${levelBadge(p.status.levels[m])}</span></div>
       ${gauge(judged, r, meta.log, winterMin)}
       <div class="metric-sub"><span>${sub}</span></div>
     </li>`;
@@ -72,7 +72,12 @@
 
   function summaryHtml(p, now) {
     const fw = p.firmware;
-    const battery = p.battery == null ? '–' : `${p.battery}%`;
+    // Name and species are often the same plant; show the species only when it adds something.
+    const showSpecies = p.species && p.species.toLowerCase() !== p.name.toLowerCase();
+    // Resting fertility (winter) moves to the bottom so the rows that matter come first.
+    const order = ['moisture', 'conductivity', 'lux', 'temperature'];
+    if (p.winter && p.status.levels.conductivity === 'low') order.push(order.splice(1, 1)[0]);
+    const sensorInfo = `Firmware ${fw.version || 'unknown'}${p.mode ? ` · ${p.mode} mode` : ''}${p.battery == null ? ' · battery unknown' : ''}`;
     const rangesNote =
       p.rangesSource === 'default'
         ? '<div class="notice info">Using generic ranges. Set a species on the <a href="/setup">setup page</a> for plant-specific ones.</div>'
@@ -84,15 +89,14 @@
     return `
       <div class="card-head">
         ${p.imageUrl ? `<img src="${esc(p.imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
-        <div class="titles"><h2>${esc(p.name)}</h2>${p.species ? `<p class="species">${esc(p.species)}</p>` : ''}</div>
+        <div class="titles"><h2>${esc(p.name)}</h2>${showSpecies ? `<p class="species">${esc(p.species)}</p>` : ''}</div>
       </div>
       <div class="problems">${statusPills(p.status)}</div>
-      <ul class="metrics">${['moisture', 'conductivity', 'lux', 'temperature'].map((m) => metricRow(p, m)).join('')}</ul>
-      <div class="meta">
-        <span>Last reading <b>${timeAgo(p.lastReadingAt, now)}</b></span>
-        <span>Battery <b>${battery}</b></span>
-        <span>Firmware <b>${esc(fw.version || 'unknown')}</b>${fw.advice ? ` <a class="fw-hint" href="#firmware-help" title="${esc(fw.advice.title)}">${fw.advice.level === 'caution' ? 'note' : 'update tip'}</a>` : ''}</span>
-        ${p.mode ? `<span>Mode <b>${p.mode}</b></span>` : ''}
+      <ul class="metrics">${order.map((m) => metricRow(p, m)).join('')}</ul>
+      <div class="meta" title="${esc(sensorInfo)}">
+        <span>${timeAgo(p.lastReadingAt, now)}</span>
+        ${p.battery == null ? '' : `<span>battery ${p.battery}%</span>`}
+        ${fw.advice ? `<a class="fw-hint" href="#firmware-help" title="${esc(fw.advice.title)}">${fw.advice.level === 'caution' ? 'firmware note' : 'firmware tip'}</a>` : ''}
       </div>
       ${rangesNote}${err}`;
   }

@@ -105,6 +105,8 @@ a { color: var(--accent); }
 .btn.small { min-height: 32px; padding: 4px 10px; font-size: 0.875rem; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+/* Plant cards stretch to fill the row, however many sensors there are. */
+#plants.grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
 
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -137,8 +139,8 @@ a { color: var(--accent); }
 .level { font-size: 0.8rem; font-weight: 600; margin-left: 6px; }
 .level.low, .level.high { color: var(--warn-ink); }
 .level.ok { color: var(--good-ink); }
-.level.resting { color: var(--text-3); font-weight: 500; }
-.metrics li.resting .metric-value, .metrics li.resting .gauge { opacity: 0.45; }
+.metrics li.resting { display: flex; justify-content: space-between; gap: 8px; color: var(--text-3); font-size: 0.8rem; }
+.metrics li.resting .metric-name { color: inherit; font-size: inherit; }
 .metric-sub { display: flex; justify-content: space-between; color: var(--text-3); font-size: 0.8rem; margin-top: 2px; }
 
 .gauge { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; margin-top: 6px; }
@@ -149,8 +151,9 @@ a { color: var(--accent); }
   background: var(--text); box-shadow: 0 0 0 2px var(--surface);
 }
 
-.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 0.85rem; }
-.meta b { color: var(--text); font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 14px; color: var(--text-3); font-size: 0.8rem; }
+.meta > * + *::before { content: '·'; margin-right: 6px; } 
+.meta > *::before { display: inline-block; }
 
 .notice { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 0.875rem; }
 .notice.warn { background: var(--warn-bg); color: var(--text); border-left: 4px solid var(--warning); }
@@ -160,7 +163,7 @@ a { color: var(--accent); }
 .notice p { margin: 4px 0 0; }
 
 details.history { margin-top: 12px; }
-details.history summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 6px 0; }
+details.history summary { cursor: pointer; color: var(--text-2); font-size: 0.85rem; padding: 6px 0; }
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .seg button {
   appearance: none; border: 0; background: var(--surface); color: var(--text-2); font: inherit; font-size: 0.85rem;
