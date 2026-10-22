@@ -143,6 +143,7 @@ a { color: var(--accent); }
 
 .gauge { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; margin-top: 6px; }
 .gauge .zone { position: absolute; top: 0; bottom: 0; background: var(--band); border-left: 2px solid var(--band-line); border-right: 2px solid var(--band-line); }
+.gauge .zone.winter { opacity: 0.4; border-right: 0; border-left-style: dotted; }
 .gauge .marker {
   position: absolute; top: -4px; width: 4px; height: 16px; margin-left: -2px; border-radius: 2px;
   background: var(--text); box-shadow: 0 0 0 2px var(--surface);

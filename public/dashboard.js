@@ -13,7 +13,8 @@
     return '';
   }
 
-  function gauge(value, range, log) {
+  /** `winterMin`: lower light limit in winter, drawn as a faint extension of the ideal zone. */
+  function gauge(value, range, log, winterMin) {
     if (value == null || range.min == null || range.max == null) return '';
     const f = log ? (x) => Math.log10(Math.max(1, x)) : (x) => x;
     const lo = log ? 1 : Math.min(0, value, range.min);
@@ -21,7 +22,8 @@
     const pos = (x) => Math.min(100, Math.max(0, ((f(x) - f(lo)) / (f(hi) - f(lo))) * 100));
     const a = pos(range.min);
     const b = pos(range.max);
-    return `<div class="gauge" aria-hidden="true"><div class="zone" style="left:${a}%;width:${b - a}%"></div>
+    const w = winterMin != null && winterMin < range.min ? pos(winterMin) : null;
+    return `<div class="gauge" aria-hidden="true">${w != null ? `<div class="zone winter" style="left:${w}%;width:${a - w}%"></div>` : ''}<div class="zone" style="left:${a}%;width:${b - a}%"></div>
       <div class="marker" style="left:${pos(value)}%"></div></div>`;
   }
 
@@ -33,13 +35,16 @@
   function metricRow(p, m) {
     const meta = METRICS[m];
     // Ranges the status was judged against: in winter the light minimum is lower.
-    const r = (p.judgedRanges || p.ranges)[m];
+    const r = p.ranges[m];
+    // In winter the light minimum is lowered (see WINTER_LIGHT_FACTOR); show both.
+    const winterMin = m === 'lux' && p.winter && p.judgedRanges ? p.judgedRanges.lux.min : null;
     const judged = m === 'lux' && p.lightPeak24h != null ? p.lightPeak24h : p.values[m];
     let sub = rangeText(r, meta.unit);
     let name = meta.label;
     if (m === 'lux') {
       name = 'Light <span class="subtle">(24 h peak)</span>';
-      sub = `now ${fmt(p.values.lux)} lx · ${sub}${p.winter ? ' (winter)' : ''}`;
+      sub = `now ${fmt(p.values.lux)} lx · ${sub}`;
+      if (winterMin != null && winterMin !== r.min) sub += ` · ❄ winter min ${fmt(winterMin)} lx`;
     }
     // Low fertility in winter is expected: plants rest and are not fed until spring.
     const resting = m === 'conductivity' && p.winter && p.status.levels[m] === 'low';
@@ -50,7 +55,7 @@
     return `<li${resting ? ' class="resting"' : ''}>
       <div class="metric-top"><span class="metric-name">${name}</span>
         <span><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${badge}</span></div>
-      ${gauge(judged, r, meta.log)}
+      ${gauge(judged, r, meta.log, winterMin)}
       <div class="metric-sub"><span>${sub}</span></div>
     </li>`;
   }
