@@ -139,8 +139,8 @@ a { color: var(--accent); }
 .level { font-size: 0.8rem; font-weight: 600; margin-left: 6px; }
 .level.low, .level.high { color: var(--warn-ink); }
 .level.ok { color: var(--good-ink); }
-.metrics li.resting { display: flex; justify-content: space-between; gap: 8px; color: var(--text-3); font-size: 0.8rem; }
-.metrics li.resting .metric-name { color: inherit; font-size: inherit; }
+.level.resting { color: var(--text-2); font-weight: 500; }
+.metrics li.resting { opacity: 0.3; }
 .metric-sub { display: flex; justify-content: space-between; color: var(--text-3); font-size: 0.8rem; margin-top: 2px; }
 
 .gauge { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; margin-top: 6px; }

@@ -36,11 +36,7 @@
     const meta = METRICS[m];
     const r = p.ranges[m];
     // Low fertility in winter is expected: plants rest and are not fed until spring.
-    // Show it as one quiet line instead of a full row.
-    if (m === 'conductivity' && p.winter && p.status.levels[m] === 'low') {
-      return `<li class="resting" title="Plants rest in winter, no fertilizer until spring (${esc(rangeText(r, meta.unit))})">
-        <span class="metric-name">${meta.label}</span><span>❄ resting · ${fmt(p.values[m], m)} ${meta.unit}</span></li>`;
-    }
+    const resting = m === 'conductivity' && p.winter && p.status.levels[m] === 'low';
     // In winter the light minimum is lowered (see WINTER_LIGHT_FACTOR); show both.
     const winterMin = m === 'lux' && p.winter && p.judgedRanges ? p.judgedRanges.lux.min : null;
     const judged = m === 'lux' && p.lightPeak24h != null ? p.lightPeak24h : p.values[m];
@@ -52,9 +48,11 @@
       valueTitle = ` title="24 h peak · now ${fmt(p.values.lux)} lx"`;
       if (winterMin != null && winterMin !== r.min) sub += ` · ❄ ≥${fmt(winterMin)} in winter`;
     }
-    return `<li>
+    const badge = resting ? '<span class="level resting">❄ Resting</span>' : levelBadge(p.status.levels[m]);
+    if (resting) sub += ' · fine in winter';
+    return `<li${resting ? ' class="resting" title="Plants rest in winter, no fertilizer until spring"' : ''}>
       <div class="metric-top"><span class="metric-name">${name}</span>
-        <span${valueTitle}><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${levelBadge(p.status.levels[m])}</span></div>
+        <span${valueTitle}><span class="metric-value">${fmt(judged, m)}<span class="unit">${meta.unit}</span></span>${badge}</span></div>
       ${gauge(judged, r, meta.log, winterMin)}
       <div class="metric-sub"><span>${sub}</span></div>
     </li>`;
