@@ -207,6 +207,13 @@ details.fw-help > summary::after { content: ' ▾'; }
 details.fw-help[open] > summary::after { content: ' ▴'; }
 details.fw-help > summary:hover { color: var(--text-2); border-color: var(--border); }
 details.fw-help > .panel { text-align: left; margin-top: 8px; }
+/* Battery/firmware read failures: secondary, so a faded toggle until opened. */
+details.info-error > summary { display: inline-block; list-style: none; cursor: pointer; color: var(--text-3); font-size: 0.8rem; }
+details.info-error > summary::-webkit-details-marker { display: none; }
+details.info-error > summary::after { content: ' ▾'; }
+details.info-error[open] > summary::after { content: ' ▴'; }
+details.info-error > summary:hover { color: var(--text-2); }
+details.info-error > p { margin: 4px 0 0; }
 .fw-hint { color: var(--text-3); font-size: 0.8rem; text-decoration: underline dotted; margin-left: 2px; }
 .fw-hint:hover { color: var(--text-2); }
 .field.quiet input { width: 150px; }

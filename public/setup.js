@@ -122,7 +122,7 @@
     const error = !s.lastError
       ? ''
       : s.lastErrorKind === 'info'
-        ? `<p class="subtle">${esc(s.lastError)} (${timeAgo(s.lastErrorAt)})</p>`
+        ? `<details class="info-error"><summary>Battery/firmware refresh failed ${timeAgo(s.lastErrorAt)}</summary><p class="subtle">${esc(s.lastError)}</p></details>`
         : `<div class="notice error"><strong>Last read problem</strong>${esc(s.lastError)} <span class="subtle">(${timeAgo(s.lastErrorAt)})</span></div>`;
     const batteryOld = s.batteryAt != null && Date.now() - s.batteryAt > 36 * 3600_000;
     return `<li data-mac="${esc(s.mac)}">
