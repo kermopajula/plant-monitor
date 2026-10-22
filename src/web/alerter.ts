@@ -46,8 +46,8 @@ function describe(p: PlantView, a: AlertState): string {
   const metric = PROBLEM_METRIC[a.problem];
   if (!metric) return `${PROBLEM_LABELS[a.problem]}: no readings since ${new Date(p.lastReadingAt ?? 0).toLocaleString()}`;
   const value = metric === 'lux' ? p.lightPeak24h : p.values[metric];
-  const r = p.ranges[metric];
-  const ideal = `${r.min ?? '–'}–${r.max ?? '–'}${UNITS[metric]}`;
+  const r = p.judgedRanges[metric];
+  const ideal = `${r.min ?? '–'}–${r.max ?? '–'}${UNITS[metric]}${metric === 'lux' && p.winter ? ', winter' : ''}`;
   const what = metric === 'lux' ? 'brightest in 24 h' : 'now';
   return `${PROBLEM_LABELS[a.problem]}: ${value ?? '?'}${UNITS[metric]} ${what} (ideal ${ideal})`;
 }
@@ -105,7 +105,9 @@ export class Alerter {
       const interval = intervalMinutes(this.store);
       for (const s of this.store.listSensors(true)) {
         const view = buildPlantView(this.store, s, now, interval);
-        const existing = this.store.alertStates(s.mac);
+        let existing = this.store.alertStates(s.mac);
+        // Fertilizer is not given in winter: forget an open alert quietly instead of reporting it resolved.
+        if (view.winter) existing = existing.filter((e) => e.problem !== 'needs_fertilizer');
         let current = view.status.problems;
         // While offline we know nothing new, so keep the earlier problems open
         // instead of reporting them as resolved.
