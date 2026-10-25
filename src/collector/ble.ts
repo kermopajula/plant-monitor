@@ -140,15 +140,6 @@ export async function waitForPoweredOn(timeoutMs: number): Promise<void> {
 }
 
 /** Calls `handler` if the adapter leaves the poweredOn state (e.g. hci0 went down). */
-/** Asks the controller for an HCI reset, which drops connections it still holds. Best effort. */
-export function resetAdapter() {
-  try {
-    noble.reset();
-  } catch (err) {
-    log.warn(`adapter reset failed: ${errorMessage(err)}`);
-  }
-}
-
 export function onAdapterLost(handler: (state: string) => void) {
   noble.on('stateChange', (state) => {
     if (state !== 'poweredOn') handler(state);
