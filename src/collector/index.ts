@@ -11,6 +11,7 @@
 
 import { config } from '../config';
 import { SETTINGS, Store, type SensorRow } from '../db';
+import { BleHealth } from '../lib/ble-health';
 import { createLogger } from '../lib/log';
 import { GattLayoutError, METRIC_KEYS, type PartialMeasurement } from '../lib/miflora';
 import { errorMessage, retry, sleep } from '../lib/retry';
@@ -24,6 +25,8 @@ import type { Advert, FloraBle } from './ble';
 const log = createLogger('collector');
 const store = new Store(config.dbPath);
 let ble: FloraBle;
+let resetAdapter: () => void;
+const health = new BleHealth();
 
 /** If a cycle takes longer than this, BLE is probably wedged: exit and let PM2 restart us. */
 const CYCLE_WATCHDOG_MS = 15 * 60_000;
@@ -44,7 +47,7 @@ async function runCycle(): Promise<Record<string, unknown>> {
   const adopted = store.listSensors(true);
   const heard = new Map<string, Heard>();
 
-  await ble.scan(config.scanSeconds * 1000, (a: Advert) => {
+  const { stopTimedOut } = await ble.scan(config.scanSeconds * 1000, (a: Advert) => {
     const h = heard.get(a.mac) ?? { rssi: a.rssi, localName: a.localName, values: {} };
     h.rssi = a.rssi;
     h.localName ??= a.localName;
@@ -128,6 +131,17 @@ async function runCycle(): Promise<Record<string, unknown>> {
 
   const result = { ...summary, heard: heard.size, adopted: adopted.length, durationMs: Date.now() - started };
   log.info(`cycle done: ${JSON.stringify(result)}`);
+
+  const wedged = health.record({ adopted: adopted.length, heardAdopted: adopted.filter((s) => heard.has(s.mac)).length, stopTimedOut });
+  if (wedged) {
+    // The process stays "online" in PM2 but hears nothing; a fresh start (with
+    // an HCI reset to drop half-closed connections) brings the sensors back.
+    log.error(`Bluetooth looks stuck (${wedged}), resetting the adapter and exiting so PM2 restarts the collector`);
+    setStatus({ state: 'error', error: `Bluetooth looked stuck (${wedged}), restarting` });
+    resetAdapter();
+    await sleep(2000);
+    process.exit(1);
+  }
   return result;
 }
 
@@ -143,7 +157,9 @@ function setStatus(patch: Record<string, unknown>) {
 async function main() {
   log.info(`starting; db=${config.dbPath}`);
   try {
-    const { FloraBle, onAdapterLost, waitForPoweredOn } = require('./ble') as typeof import('./ble');
+    const mod = require('./ble') as typeof import('./ble');
+    const { FloraBle, onAdapterLost, waitForPoweredOn } = mod;
+    resetAdapter = mod.resetAdapter;
     ble = new FloraBle({ connectMs: config.connectTimeoutMs, gattMs: config.gattTimeoutMs });
     onAdapterLost((state) => {
       log.error(`Bluetooth adapter state changed to "${state}", exiting so PM2 restarts the collector`);

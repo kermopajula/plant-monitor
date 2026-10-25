@@ -320,6 +320,7 @@ wrong.
 | `EAFNOSUPPORT, Address family not supported` | No Bluetooth adapter: check `ls /sys/class/bluetooth` and that `dtoverlay=disable-bt` is not in `/boot/firmware/config.txt` |
 | Sensor never shows up | Move it closer, press **Scan now**, check its battery (CR2032). Close the Flower Care app on your phone: a connected phone stops the sensor from advertising |
 | "Not heard during the last scan" | Range or battery. Increase `SCAN_SECONDS` if it only happens sometimes |
+| Every sensor "not heard" at once, log shows `stop scanning timed out` | Bluetooth got stuck after failed connections. The collector notices after two such scans, resets the adapter and restarts itself. To clear it by hand: `pm2 restart plant-collector` (if that is not enough, `sudo systemctl restart bluetooth` first) |
 | "Active read failed: connect timed out" | Range/interference. The Pi's built-in radio shares its antenna with Wi‑Fi, so a wired Ethernet connection or a USB BLE dongle can help |
 | Readings for some values are missing | 3.x sensors broadcast each value separately. A longer `SCAN_SECONDS` collects more of them per cycle |
 | Collector shows "has not reported yet" on the setup page | `pm2 status`, `pm2 logs plant-collector` |

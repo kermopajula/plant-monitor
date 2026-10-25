@@ -140,6 +140,15 @@ export async function waitForPoweredOn(timeoutMs: number): Promise<void> {
 }
 
 /** Calls `handler` if the adapter leaves the poweredOn state (e.g. hci0 went down). */
+/** Asks the controller for an HCI reset, which drops connections it still holds. Best effort. */
+export function resetAdapter() {
+  try {
+    noble.reset();
+  } catch (err) {
+    log.warn(`adapter reset failed: ${errorMessage(err)}`);
+  }
+}
+
 export function onAdapterLost(handler: (state: string) => void) {
   noble.on('stateChange', (state) => {
     if (state !== 'poweredOn') handler(state);
@@ -157,8 +166,9 @@ export class FloraBle {
   /**
    * Scan for up to `durationMs`, calling `onAdvert` for every Mi Flora
    * advertisement. Stops early when `onAdvert` returns true.
+   * Returns whether stopping the scan worked (a timeout there is a sign BLE is wedged).
    */
-  async scan(durationMs: number, onAdvert: (a: Advert) => boolean): Promise<void> {
+  async scan(durationMs: number, onAdvert: (a: Advert) => boolean): Promise<{ stopTimedOut: boolean }> {
     let finish!: () => void;
     const done = new Promise<void>((resolve) => (finish = resolve));
 
@@ -180,6 +190,7 @@ export class FloraBle {
 
     noble.on('discover', onDiscover);
     const timer = setTimeout(finish, durationMs);
+    let stopTimedOut = false;
     try {
       // allowDuplicates: each advertisement carries just one value, we need them all.
       await withTimeout(noble.startScanningAsync([], true), 10000, 'start scanning');
@@ -187,10 +198,12 @@ export class FloraBle {
     } finally {
       clearTimeout(timer);
       noble.removeListener('discover', onDiscover);
-      await withTimeout(noble.stopScanningAsync(), 5000, 'stop scanning').catch((err) =>
-        log.warn(errorMessage(err)),
-      );
+      await withTimeout(noble.stopScanningAsync(), 5000, 'stop scanning').catch((err) => {
+        stopTimedOut = true;
+        log.warn(errorMessage(err));
+      });
     }
+    return { stopTimedOut };
   }
 
   /**
